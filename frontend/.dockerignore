@@ -1,0 +1,11 @@
+node_modules
+dist
+.git
+.vscode
+.openai
+.env*
+*.log
+src/.umi*
+.turbopack
+coverage
+e2e-out
