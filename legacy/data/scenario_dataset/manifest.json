@@ -1,0 +1,1904 @@
+{
+  "seed": 42,
+  "source": "synthetic",
+  "model_labels_guaranteed": false,
+  "scenarios": [
+    {
+      "device": "device1",
+      "scenario": "baseline",
+      "description": "Small finite noise around zero; synthetic reference, not a guaranteed Normal.",
+      "input_folder": "device1/01_baseline/input",
+      "files": [
+        {
+          "path": "baseline.dat",
+          "serial_number": "SC_01_baseline",
+          "sha256": "4d2bc5ee6e853cd44d0ea6b3fd4a2c8dda78bd3f685fe35c069af53649c7317b",
+          "tests": {
+            "test1": {
+              "accepted": true,
+              "signal_length": 22528,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": true,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            },
+            "test2": {
+              "accepted": true,
+              "signal_length": 22528,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": true,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "device": "device1",
+      "scenario": "sine",
+      "description": "Sine wave with small noise, at the expected length.",
+      "input_folder": "device1/02_sine/input",
+      "files": [
+        {
+          "path": "sine.dat",
+          "serial_number": "SC_02_sine",
+          "sha256": "2ee5fbb05f9c010231cf791c7784b956260f6778c3d9533f05968276bd9f3698",
+          "tests": {
+            "test1": {
+              "accepted": true,
+              "signal_length": 22528,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": true,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            },
+            "test2": {
+              "accepted": true,
+              "signal_length": 22528,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": true,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "device": "device1",
+      "scenario": "all_zero",
+      "description": "Every sample is exactly zero, at the expected length.",
+      "input_folder": "device1/03_all_zero/input",
+      "files": [
+        {
+          "path": "all_zero.dat",
+          "serial_number": "SC_03_all_zero",
+          "sha256": "4306480c51892ff78e9e2eb94d62f0742c8051f430641e2f4171129a34f21632",
+          "tests": {
+            "test1": {
+              "accepted": true,
+              "signal_length": 22528,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": true,
+              "all_zero_after_loading": true,
+              "nonfinite_count": 0
+            },
+            "test2": {
+              "accepted": true,
+              "signal_length": 22528,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": true,
+              "all_zero_after_loading": true,
+              "nonfinite_count": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "device": "device1",
+      "scenario": "empty_signal",
+      "description": "signal1 exists but its data array is empty; retained for No Data reporting and never evaluated by a model.",
+      "input_folder": "device1/04_empty_signal/input",
+      "files": [
+        {
+          "path": "empty_signal.dat",
+          "serial_number": "SC_04_empty_signal",
+          "sha256": "2ad3583641e9cb98a3918b72a7a17cc5963d8b9e4db67a2147f1ed412d573613",
+          "tests": {
+            "test1": {
+              "accepted": true,
+              "signal_length": 0,
+              "expected_length": 22528,
+              "loaded_length": 0,
+              "length_matches_expected": false,
+              "all_zero_after_loading": true,
+              "nonfinite_count": 0
+            },
+            "test2": {
+              "accepted": true,
+              "signal_length": 0,
+              "expected_length": 22528,
+              "loaded_length": 0,
+              "length_matches_expected": false,
+              "all_zero_after_loading": true,
+              "nonfinite_count": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "device": "device1",
+      "scenario": "single_sample",
+      "description": "One nonzero sample; remaining samples are padded with zeros.",
+      "input_folder": "device1/05_single_sample/input",
+      "files": [
+        {
+          "path": "single_sample.dat",
+          "serial_number": "SC_05_single_sample",
+          "sha256": "ebb463e188611727203886c33458b00f4c8cba70bba3184390138fce865185ad",
+          "tests": {
+            "test1": {
+              "accepted": true,
+              "signal_length": 1,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": false,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            },
+            "test2": {
+              "accepted": true,
+              "signal_length": 1,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": false,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "device": "device1",
+      "scenario": "short_signal",
+      "description": "Half the expected length; loader pads the missing tail with zeros.",
+      "input_folder": "device1/06_short_signal/input",
+      "files": [
+        {
+          "path": "short_signal.dat",
+          "serial_number": "SC_06_short_signal",
+          "sha256": "eedaf5304b1ef5cb8fa9ce68304ebbe846c97c90e886903936b7519016f6f8e4",
+          "tests": {
+            "test1": {
+              "accepted": true,
+              "signal_length": 11264,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": false,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            },
+            "test2": {
+              "accepted": true,
+              "signal_length": 11264,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": false,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "device": "device1",
+      "scenario": "one_sample_short",
+      "description": "Expected length minus one, to exercise the length boundary.",
+      "input_folder": "device1/07_one_sample_short/input",
+      "files": [
+        {
+          "path": "one_sample_short.dat",
+          "serial_number": "SC_07_one_sample_short",
+          "sha256": "986b69155bc99e96e642bf6b283c99b0169bed02cef3792d3374cd1343214ef1",
+          "tests": {
+            "test1": {
+              "accepted": true,
+              "signal_length": 22527,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": false,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            },
+            "test2": {
+              "accepted": true,
+              "signal_length": 22527,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": false,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "device": "device1",
+      "scenario": "one_sample_long",
+      "description": "Expected length plus one; loader keeps the extra sample.",
+      "input_folder": "device1/08_one_sample_long/input",
+      "files": [
+        {
+          "path": "one_sample_long.dat",
+          "serial_number": "SC_08_one_sample_long",
+          "sha256": "699ab724f4d0ab0b8950fafe71f9b09eedbbd1fb44e1ad5e1af23268735e4009",
+          "tests": {
+            "test1": {
+              "accepted": true,
+              "signal_length": 22529,
+              "expected_length": 22528,
+              "loaded_length": 22529,
+              "length_matches_expected": false,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            },
+            "test2": {
+              "accepted": true,
+              "signal_length": 22529,
+              "expected_length": 22528,
+              "loaded_length": 22529,
+              "length_matches_expected": false,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "device": "device1",
+      "scenario": "long_signal",
+      "description": "Expected length plus 1000; loader does not truncate it.",
+      "input_folder": "device1/09_long_signal/input",
+      "files": [
+        {
+          "path": "long_signal.dat",
+          "serial_number": "SC_09_long_signal",
+          "sha256": "5d641539e85b60ef87f5bbb78945dec12e82c64a206d78d1e5afaede6d8e1321",
+          "tests": {
+            "test1": {
+              "accepted": true,
+              "signal_length": 23528,
+              "expected_length": 22528,
+              "loaded_length": 23528,
+              "length_matches_expected": false,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            },
+            "test2": {
+              "accepted": true,
+              "signal_length": 23528,
+              "expected_length": 22528,
+              "loaded_length": 23528,
+              "length_matches_expected": false,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "device": "device1",
+      "scenario": "short_all_zero",
+      "description": "Half-length all-zero signal; both zero data and length mismatch.",
+      "input_folder": "device1/10_short_all_zero/input",
+      "files": [
+        {
+          "path": "short_all_zero.dat",
+          "serial_number": "SC_10_short_all_zero",
+          "sha256": "6ab0921ffb5c724a29029d563e28690c8da04fa902310b65d2cf93cffe783ae1",
+          "tests": {
+            "test1": {
+              "accepted": true,
+              "signal_length": 11264,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": false,
+              "all_zero_after_loading": true,
+              "nonfinite_count": 0
+            },
+            "test2": {
+              "accepted": true,
+              "signal_length": 11264,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": false,
+              "all_zero_after_loading": true,
+              "nonfinite_count": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "device": "device1",
+      "scenario": "constant_nonzero",
+      "description": "Constant positive signal without variation.",
+      "input_folder": "device1/11_constant_nonzero/input",
+      "files": [
+        {
+          "path": "constant_nonzero.dat",
+          "serial_number": "SC_11_constant_nonzero",
+          "sha256": "71cf4bd7009cc14cbd6074e6722e4d053add16c6a2afd4c958e7cbc986abfbff",
+          "tests": {
+            "test1": {
+              "accepted": true,
+              "signal_length": 22528,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": true,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            },
+            "test2": {
+              "accepted": true,
+              "signal_length": 22528,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": true,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "device": "device1",
+      "scenario": "constant_negative",
+      "description": "Constant negative signal without variation.",
+      "input_folder": "device1/12_constant_negative/input",
+      "files": [
+        {
+          "path": "constant_negative.dat",
+          "serial_number": "SC_12_constant_negative",
+          "sha256": "51898dbbe12fee02001d17fc667eb5f09970bbe11ba5355380af7d8a68e0b58b",
+          "tests": {
+            "test1": {
+              "accepted": true,
+              "signal_length": 22528,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": true,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            },
+            "test2": {
+              "accepted": true,
+              "signal_length": 22528,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": true,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "device": "device1",
+      "scenario": "near_zero",
+      "description": "Tiny nonzero values; distinguishes near-zero from exactly all-zero.",
+      "input_folder": "device1/13_near_zero/input",
+      "files": [
+        {
+          "path": "near_zero.dat",
+          "serial_number": "SC_13_near_zero",
+          "sha256": "6379ce433949377404971b3b4b63ef81ece420be8ac196371e6589bc19bff143",
+          "tests": {
+            "test1": {
+              "accepted": true,
+              "signal_length": 22528,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": true,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            },
+            "test2": {
+              "accepted": true,
+              "signal_length": 22528,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": true,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "device": "device1",
+      "scenario": "single_spike",
+      "description": "One large spike in the middle of the signal.",
+      "input_folder": "device1/14_single_spike/input",
+      "files": [
+        {
+          "path": "single_spike.dat",
+          "serial_number": "SC_14_single_spike",
+          "sha256": "d3ae7829125c08960c0975081cd5804f9fdd3bb96bd5424d2f156588184a3af0",
+          "tests": {
+            "test1": {
+              "accepted": true,
+              "signal_length": 22528,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": true,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            },
+            "test2": {
+              "accepted": true,
+              "signal_length": 22528,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": true,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "device": "device1",
+      "scenario": "negative_spike",
+      "description": "One large negative spike in the middle of the signal.",
+      "input_folder": "device1/15_negative_spike/input",
+      "files": [
+        {
+          "path": "negative_spike.dat",
+          "serial_number": "SC_15_negative_spike",
+          "sha256": "cab3898ecb429b548a75dba5b93c9e215192ca18fdf62557a8d6524f4a74ecaf",
+          "tests": {
+            "test1": {
+              "accepted": true,
+              "signal_length": 22528,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": true,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            },
+            "test2": {
+              "accepted": true,
+              "signal_length": 22528,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": true,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "device": "device1",
+      "scenario": "spike_each_section",
+      "description": "A large spike at the midpoint of every configured section.",
+      "input_folder": "device1/16_spike_each_section/input",
+      "files": [
+        {
+          "path": "spike_each_section.dat",
+          "serial_number": "SC_16_spike_each_section",
+          "sha256": "4bdd48ef3d54354e532cfe275c76b0db065c5edca80d031808e86844ca6105f0",
+          "tests": {
+            "test1": {
+              "accepted": true,
+              "signal_length": 22528,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": true,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            },
+            "test2": {
+              "accepted": true,
+              "signal_length": 22528,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": true,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "device": "device1",
+      "scenario": "zero_section",
+      "description": "A complete configured section is zero inside a nonzero signal.",
+      "input_folder": "device1/17_zero_section/input",
+      "files": [
+        {
+          "path": "zero_section.dat",
+          "serial_number": "SC_17_zero_section",
+          "sha256": "bdd453a86b5a48c918ecf2ab6d5120db6b27529f900cb7239513f62fd6456ad5",
+          "tests": {
+            "test1": {
+              "accepted": true,
+              "signal_length": 22528,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": true,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            },
+            "test2": {
+              "accepted": true,
+              "signal_length": 22528,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": true,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "device": "device1",
+      "scenario": "zero_tail",
+      "description": "Final quarter is zero while the stored length remains correct.",
+      "input_folder": "device1/18_zero_tail/input",
+      "files": [
+        {
+          "path": "zero_tail.dat",
+          "serial_number": "SC_18_zero_tail",
+          "sha256": "331599b6ac2f7abce2367331f19f78d2bd659e630596e83de2afe9e84d69c11a",
+          "tests": {
+            "test1": {
+              "accepted": true,
+              "signal_length": 22528,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": true,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            },
+            "test2": {
+              "accepted": true,
+              "signal_length": 22528,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": true,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "device": "device1",
+      "scenario": "step_change",
+      "description": "A sudden level shift halfway through the signal.",
+      "input_folder": "device1/19_step_change/input",
+      "files": [
+        {
+          "path": "step_change.dat",
+          "serial_number": "SC_19_step_change",
+          "sha256": "366aee062cd3946eea5d9ed32124ea3dc9c5eaf1491f77d4d45f270ae22dbb04",
+          "tests": {
+            "test1": {
+              "accepted": true,
+              "signal_length": 22528,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": true,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            },
+            "test2": {
+              "accepted": true,
+              "signal_length": 22528,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": true,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "device": "device1",
+      "scenario": "drift",
+      "description": "Gradually increasing offset across the whole signal.",
+      "input_folder": "device1/20_drift/input",
+      "files": [
+        {
+          "path": "drift.dat",
+          "serial_number": "SC_20_drift",
+          "sha256": "28243ba2ce75bb8cbe6a0c3a1fa6c8ef55f21ef0aeb6bc2ebb6c09fed31516ad",
+          "tests": {
+            "test1": {
+              "accepted": true,
+              "signal_length": 22528,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": true,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            },
+            "test2": {
+              "accepted": true,
+              "signal_length": 22528,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": true,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "device": "device1",
+      "scenario": "high_noise",
+      "description": "Large-amplitude random noise.",
+      "input_folder": "device1/21_high_noise/input",
+      "files": [
+        {
+          "path": "high_noise.dat",
+          "serial_number": "SC_21_high_noise",
+          "sha256": "894fcf65c6d895bb63405fec3427dba8903971f1bf0edbd0b2c3e9cde80edaf6",
+          "tests": {
+            "test1": {
+              "accepted": true,
+              "signal_length": 22528,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": true,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            },
+            "test2": {
+              "accepted": true,
+              "signal_length": 22528,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": true,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "device": "device1",
+      "scenario": "nan_value",
+      "description": "One NaN sample; current loader accepts it without finite-value validation.",
+      "input_folder": "device1/22_nan_value/input",
+      "files": [
+        {
+          "path": "nan_value.dat",
+          "serial_number": "SC_22_nan_value",
+          "sha256": "0c87adc2e8160d3be00c5b27599efd68cf66483b3cc94ce3498695e10380d21b",
+          "tests": {
+            "test1": {
+              "accepted": true,
+              "signal_length": 22528,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": true,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 1
+            },
+            "test2": {
+              "accepted": true,
+              "signal_length": 22528,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": true,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 1
+            }
+          }
+        }
+      ]
+    },
+    {
+      "device": "device1",
+      "scenario": "positive_infinity",
+      "description": "One positive infinity; current loader accepts it.",
+      "input_folder": "device1/23_positive_infinity/input",
+      "files": [
+        {
+          "path": "positive_infinity.dat",
+          "serial_number": "SC_23_positive_infinity",
+          "sha256": "a65d6233eebb77506e151a25a77631ac4fd8b1d993f817a1fca56ac1ca16689a",
+          "tests": {
+            "test1": {
+              "accepted": true,
+              "signal_length": 22528,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": true,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 1
+            },
+            "test2": {
+              "accepted": true,
+              "signal_length": 22528,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": true,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 1
+            }
+          }
+        }
+      ]
+    },
+    {
+      "device": "device1",
+      "scenario": "negative_infinity",
+      "description": "One negative infinity; current loader accepts it.",
+      "input_folder": "device1/24_negative_infinity/input",
+      "files": [
+        {
+          "path": "negative_infinity.dat",
+          "serial_number": "SC_24_negative_infinity",
+          "sha256": "ef90fa9a3c5813ba35406a2472db533156c7c0cbdeae43d7dd5730bc91b33488",
+          "tests": {
+            "test1": {
+              "accepted": true,
+              "signal_length": 22528,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": true,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 1
+            },
+            "test2": {
+              "accepted": true,
+              "signal_length": 22528,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": true,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 1
+            }
+          }
+        }
+      ]
+    },
+    {
+      "device": "device1",
+      "scenario": "missing_tests",
+      "description": "Device exists but testResult is empty; loader skips the file.",
+      "input_folder": "device1/25_missing_tests/input",
+      "files": [
+        {
+          "path": "missing_tests.dat",
+          "serial_number": "SC_25_missing_tests",
+          "sha256": "c1c7f5995af448ee51ac29e92e32a1fa32bae8cc7a52708b5703d3ff1f34058d",
+          "tests": {
+            "test1": {
+              "accepted": false
+            },
+            "test2": {
+              "accepted": false
+            }
+          }
+        }
+      ]
+    },
+    {
+      "device": "device1",
+      "scenario": "unknown_test",
+      "description": "Only an unconfigured test exists; loader skips the file.",
+      "input_folder": "device1/26_unknown_test/input",
+      "files": [
+        {
+          "path": "unknown_test.dat",
+          "serial_number": "SC_26_unknown_test",
+          "sha256": "1122bcc1d6510af2c3153ac439df7d933a61c54b39e8690e7ffb98267ab7ff02",
+          "tests": {
+            "test1": {
+              "accepted": false
+            },
+            "test2": {
+              "accepted": false
+            }
+          }
+        }
+      ]
+    },
+    {
+      "device": "device1",
+      "scenario": "missing_signals",
+      "description": "Configured tests exist but have no signals; loader skips the file.",
+      "input_folder": "device1/27_missing_signals/input",
+      "files": [
+        {
+          "path": "missing_signals.dat",
+          "serial_number": "SC_27_missing_signals",
+          "sha256": "345a7c8571dc1cbdbd7423f8cc64236abfee07799ec5d08cef828214e138385d",
+          "tests": {
+            "test1": {
+              "accepted": false
+            },
+            "test2": {
+              "accepted": false
+            }
+          }
+        }
+      ]
+    },
+    {
+      "device": "device1",
+      "scenario": "wrong_signal_name",
+      "description": "Only signal2 exists; loader skips the file.",
+      "input_folder": "device1/28_wrong_signal_name/input",
+      "files": [
+        {
+          "path": "wrong_signal_name.dat",
+          "serial_number": "SC_28_wrong_signal_name",
+          "sha256": "81bb3e6776e5ad67f112941698ede1c6a6beace1063e961708e45ff84bded084",
+          "tests": {
+            "test1": {
+              "accepted": false
+            },
+            "test2": {
+              "accepted": false
+            }
+          }
+        }
+      ]
+    },
+    {
+      "device": "device1",
+      "scenario": "uppercase_signal",
+      "description": "Signal1 spelling is accepted by the current loader.",
+      "input_folder": "device1/29_uppercase_signal/input",
+      "files": [
+        {
+          "path": "uppercase_signal.dat",
+          "serial_number": "SC_29_uppercase_signal",
+          "sha256": "feb6425fcb71df95d0ea20045ed4a02a3fbb72603d13cde783052f5cffcbca52",
+          "tests": {
+            "test1": {
+              "accepted": true,
+              "signal_length": 22528,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": true,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            },
+            "test2": {
+              "accepted": true,
+              "signal_length": 22528,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": true,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "device": "device1",
+      "scenario": "wrong_device",
+      "description": "Device series does not match the selected device; loader skips it.",
+      "input_folder": "device1/30_wrong_device/input",
+      "files": [
+        {
+          "path": "wrong_device.dat",
+          "serial_number": "SC_30_wrong_device",
+          "sha256": "463379bb6f4c0315970eb15d85a53dabde61d617832a3af5280158faeab91776",
+          "tests": {
+            "test1": {
+              "accepted": false
+            },
+            "test2": {
+              "accepted": false
+            }
+          }
+        }
+      ]
+    },
+    {
+      "device": "device1",
+      "scenario": "empty_root",
+      "description": "Valid compressed protobuf with no device items; loader skips it.",
+      "input_folder": "device1/31_empty_root/input",
+      "files": [
+        {
+          "path": "empty_root.dat",
+          "serial_number": "SC_31_empty_root",
+          "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+          "tests": {
+            "test1": {
+              "accepted": false
+            },
+            "test2": {
+              "accepted": false
+            }
+          }
+        }
+      ]
+    },
+    {
+      "device": "device1",
+      "scenario": "invalid_gzip",
+      "description": "File is not gzip; loader logs a decoding error and skips it.",
+      "input_folder": "device1/32_invalid_gzip/input",
+      "files": [
+        {
+          "path": "invalid_gzip.dat",
+          "serial_number": "SC_32_invalid_gzip",
+          "sha256": "bce36db5f87f9a824841f4b12593436c73ed1adb19e8e9ce82cbc0b0428a6e67",
+          "tests": {
+            "test1": {
+              "accepted": false
+            },
+            "test2": {
+              "accepted": false
+            }
+          }
+        }
+      ]
+    },
+    {
+      "device": "device1",
+      "scenario": "invalid_protobuf",
+      "description": "Gzip is valid but its contents are invalid protobuf; loader logs an error and skips it.",
+      "input_folder": "device1/33_invalid_protobuf/input",
+      "files": [
+        {
+          "path": "invalid_protobuf.dat",
+          "serial_number": "SC_33_invalid_protobuf",
+          "sha256": "d017daf8adfc6fd8cb09735cb65075c59c54e87bb8cd7b82c3f079d64c22731b",
+          "tests": {
+            "test1": {
+              "accepted": false
+            },
+            "test2": {
+              "accepted": false
+            }
+          }
+        }
+      ]
+    },
+    {
+      "device": "device1",
+      "scenario": "zero_byte_file",
+      "description": "File has zero bytes; loader skips it.",
+      "input_folder": "device1/34_zero_byte_file/input",
+      "files": [
+        {
+          "path": "zero_byte_file.dat",
+          "serial_number": "SC_34_zero_byte_file",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "tests": {
+            "test1": {
+              "accepted": false
+            },
+            "test2": {
+              "accepted": false
+            }
+          }
+        }
+      ]
+    },
+    {
+      "device": "device1",
+      "scenario": "ignored_extension",
+      "description": "Valid gzip/protobuf stored as .dat.gz; directory loader ignores it.",
+      "input_folder": "device1/35_ignored_extension/input",
+      "files": [
+        {
+          "path": "ignored_extension.dat.gz",
+          "serial_number": "SC_35_ignored_extension",
+          "sha256": "ae6722dc22d5340077b7192d26be8d0a88e99c66581d1cdcd9da25c78f671995",
+          "tests": {
+            "test1": {
+              "accepted": false
+            },
+            "test2": {
+              "accepted": false
+            }
+          }
+        }
+      ]
+    },
+    {
+      "device": "device1",
+      "scenario": "empty_folder",
+      "description": "No .dat files exist; no models run and the dashboard has no serial rows.",
+      "input_folder": "device1/36_empty_folder/input",
+      "files": []
+    },
+    {
+      "device": "device1",
+      "scenario": "missing_test1",
+      "description": "Only test1 is absent; other configured tests remain available.",
+      "input_folder": "device1/37_missing_test1/input",
+      "files": [
+        {
+          "path": "missing_test1.dat",
+          "serial_number": "SC_37_missing_test1",
+          "sha256": "6f310ef15230fbfd9d09af47d5d1dd5c705f5d4bef7dfbac5a3912ba03cd836f",
+          "tests": {
+            "test1": {
+              "accepted": false
+            },
+            "test2": {
+              "accepted": true,
+              "signal_length": 22528,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": true,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "device": "device1",
+      "scenario": "missing_test2",
+      "description": "Only test2 is absent; other configured tests remain available.",
+      "input_folder": "device1/38_missing_test2/input",
+      "files": [
+        {
+          "path": "missing_test2.dat",
+          "serial_number": "SC_38_missing_test2",
+          "sha256": "745a25beef60c4e8ce8f3ba3a3899a25f02c1a2f0499939b29d500066cc6f507",
+          "tests": {
+            "test1": {
+              "accepted": true,
+              "signal_length": 22528,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": true,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            },
+            "test2": {
+              "accepted": false
+            }
+          }
+        }
+      ]
+    },
+    {
+      "device": "device1",
+      "scenario": "mixed",
+      "description": "All file-based cases together, including valid, missing, nonfinite and corrupt data.",
+      "input_folder": "device1/99_mixed/input",
+      "files": [
+        {
+          "path": "baseline.dat",
+          "serial_number": "SC_01_baseline",
+          "sha256": "4d2bc5ee6e853cd44d0ea6b3fd4a2c8dda78bd3f685fe35c069af53649c7317b",
+          "tests": {
+            "test1": {
+              "accepted": true,
+              "signal_length": 22528,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": true,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            },
+            "test2": {
+              "accepted": true,
+              "signal_length": 22528,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": true,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            }
+          }
+        },
+        {
+          "path": "sine.dat",
+          "serial_number": "SC_02_sine",
+          "sha256": "2ee5fbb05f9c010231cf791c7784b956260f6778c3d9533f05968276bd9f3698",
+          "tests": {
+            "test1": {
+              "accepted": true,
+              "signal_length": 22528,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": true,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            },
+            "test2": {
+              "accepted": true,
+              "signal_length": 22528,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": true,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            }
+          }
+        },
+        {
+          "path": "all_zero.dat",
+          "serial_number": "SC_03_all_zero",
+          "sha256": "4306480c51892ff78e9e2eb94d62f0742c8051f430641e2f4171129a34f21632",
+          "tests": {
+            "test1": {
+              "accepted": true,
+              "signal_length": 22528,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": true,
+              "all_zero_after_loading": true,
+              "nonfinite_count": 0
+            },
+            "test2": {
+              "accepted": true,
+              "signal_length": 22528,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": true,
+              "all_zero_after_loading": true,
+              "nonfinite_count": 0
+            }
+          }
+        },
+        {
+          "path": "empty_signal.dat",
+          "serial_number": "SC_04_empty_signal",
+          "sha256": "2ad3583641e9cb98a3918b72a7a17cc5963d8b9e4db67a2147f1ed412d573613",
+          "tests": {
+            "test1": {
+              "accepted": true,
+              "signal_length": 0,
+              "expected_length": 22528,
+              "loaded_length": 0,
+              "length_matches_expected": false,
+              "all_zero_after_loading": true,
+              "nonfinite_count": 0
+            },
+            "test2": {
+              "accepted": true,
+              "signal_length": 0,
+              "expected_length": 22528,
+              "loaded_length": 0,
+              "length_matches_expected": false,
+              "all_zero_after_loading": true,
+              "nonfinite_count": 0
+            }
+          }
+        },
+        {
+          "path": "single_sample.dat",
+          "serial_number": "SC_05_single_sample",
+          "sha256": "ebb463e188611727203886c33458b00f4c8cba70bba3184390138fce865185ad",
+          "tests": {
+            "test1": {
+              "accepted": true,
+              "signal_length": 1,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": false,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            },
+            "test2": {
+              "accepted": true,
+              "signal_length": 1,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": false,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            }
+          }
+        },
+        {
+          "path": "short_signal.dat",
+          "serial_number": "SC_06_short_signal",
+          "sha256": "eedaf5304b1ef5cb8fa9ce68304ebbe846c97c90e886903936b7519016f6f8e4",
+          "tests": {
+            "test1": {
+              "accepted": true,
+              "signal_length": 11264,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": false,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            },
+            "test2": {
+              "accepted": true,
+              "signal_length": 11264,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": false,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            }
+          }
+        },
+        {
+          "path": "one_sample_short.dat",
+          "serial_number": "SC_07_one_sample_short",
+          "sha256": "986b69155bc99e96e642bf6b283c99b0169bed02cef3792d3374cd1343214ef1",
+          "tests": {
+            "test1": {
+              "accepted": true,
+              "signal_length": 22527,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": false,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            },
+            "test2": {
+              "accepted": true,
+              "signal_length": 22527,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": false,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            }
+          }
+        },
+        {
+          "path": "one_sample_long.dat",
+          "serial_number": "SC_08_one_sample_long",
+          "sha256": "699ab724f4d0ab0b8950fafe71f9b09eedbbd1fb44e1ad5e1af23268735e4009",
+          "tests": {
+            "test1": {
+              "accepted": true,
+              "signal_length": 22529,
+              "expected_length": 22528,
+              "loaded_length": 22529,
+              "length_matches_expected": false,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            },
+            "test2": {
+              "accepted": true,
+              "signal_length": 22529,
+              "expected_length": 22528,
+              "loaded_length": 22529,
+              "length_matches_expected": false,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            }
+          }
+        },
+        {
+          "path": "long_signal.dat",
+          "serial_number": "SC_09_long_signal",
+          "sha256": "5d641539e85b60ef87f5bbb78945dec12e82c64a206d78d1e5afaede6d8e1321",
+          "tests": {
+            "test1": {
+              "accepted": true,
+              "signal_length": 23528,
+              "expected_length": 22528,
+              "loaded_length": 23528,
+              "length_matches_expected": false,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            },
+            "test2": {
+              "accepted": true,
+              "signal_length": 23528,
+              "expected_length": 22528,
+              "loaded_length": 23528,
+              "length_matches_expected": false,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            }
+          }
+        },
+        {
+          "path": "short_all_zero.dat",
+          "serial_number": "SC_10_short_all_zero",
+          "sha256": "6ab0921ffb5c724a29029d563e28690c8da04fa902310b65d2cf93cffe783ae1",
+          "tests": {
+            "test1": {
+              "accepted": true,
+              "signal_length": 11264,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": false,
+              "all_zero_after_loading": true,
+              "nonfinite_count": 0
+            },
+            "test2": {
+              "accepted": true,
+              "signal_length": 11264,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": false,
+              "all_zero_after_loading": true,
+              "nonfinite_count": 0
+            }
+          }
+        },
+        {
+          "path": "constant_nonzero.dat",
+          "serial_number": "SC_11_constant_nonzero",
+          "sha256": "71cf4bd7009cc14cbd6074e6722e4d053add16c6a2afd4c958e7cbc986abfbff",
+          "tests": {
+            "test1": {
+              "accepted": true,
+              "signal_length": 22528,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": true,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            },
+            "test2": {
+              "accepted": true,
+              "signal_length": 22528,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": true,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            }
+          }
+        },
+        {
+          "path": "constant_negative.dat",
+          "serial_number": "SC_12_constant_negative",
+          "sha256": "51898dbbe12fee02001d17fc667eb5f09970bbe11ba5355380af7d8a68e0b58b",
+          "tests": {
+            "test1": {
+              "accepted": true,
+              "signal_length": 22528,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": true,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            },
+            "test2": {
+              "accepted": true,
+              "signal_length": 22528,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": true,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            }
+          }
+        },
+        {
+          "path": "near_zero.dat",
+          "serial_number": "SC_13_near_zero",
+          "sha256": "6379ce433949377404971b3b4b63ef81ece420be8ac196371e6589bc19bff143",
+          "tests": {
+            "test1": {
+              "accepted": true,
+              "signal_length": 22528,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": true,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            },
+            "test2": {
+              "accepted": true,
+              "signal_length": 22528,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": true,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            }
+          }
+        },
+        {
+          "path": "single_spike.dat",
+          "serial_number": "SC_14_single_spike",
+          "sha256": "d3ae7829125c08960c0975081cd5804f9fdd3bb96bd5424d2f156588184a3af0",
+          "tests": {
+            "test1": {
+              "accepted": true,
+              "signal_length": 22528,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": true,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            },
+            "test2": {
+              "accepted": true,
+              "signal_length": 22528,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": true,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            }
+          }
+        },
+        {
+          "path": "negative_spike.dat",
+          "serial_number": "SC_15_negative_spike",
+          "sha256": "cab3898ecb429b548a75dba5b93c9e215192ca18fdf62557a8d6524f4a74ecaf",
+          "tests": {
+            "test1": {
+              "accepted": true,
+              "signal_length": 22528,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": true,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            },
+            "test2": {
+              "accepted": true,
+              "signal_length": 22528,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": true,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            }
+          }
+        },
+        {
+          "path": "spike_each_section.dat",
+          "serial_number": "SC_16_spike_each_section",
+          "sha256": "4bdd48ef3d54354e532cfe275c76b0db065c5edca80d031808e86844ca6105f0",
+          "tests": {
+            "test1": {
+              "accepted": true,
+              "signal_length": 22528,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": true,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            },
+            "test2": {
+              "accepted": true,
+              "signal_length": 22528,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": true,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            }
+          }
+        },
+        {
+          "path": "zero_section.dat",
+          "serial_number": "SC_17_zero_section",
+          "sha256": "bdd453a86b5a48c918ecf2ab6d5120db6b27529f900cb7239513f62fd6456ad5",
+          "tests": {
+            "test1": {
+              "accepted": true,
+              "signal_length": 22528,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": true,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            },
+            "test2": {
+              "accepted": true,
+              "signal_length": 22528,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": true,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            }
+          }
+        },
+        {
+          "path": "zero_tail.dat",
+          "serial_number": "SC_18_zero_tail",
+          "sha256": "331599b6ac2f7abce2367331f19f78d2bd659e630596e83de2afe9e84d69c11a",
+          "tests": {
+            "test1": {
+              "accepted": true,
+              "signal_length": 22528,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": true,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            },
+            "test2": {
+              "accepted": true,
+              "signal_length": 22528,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": true,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            }
+          }
+        },
+        {
+          "path": "step_change.dat",
+          "serial_number": "SC_19_step_change",
+          "sha256": "366aee062cd3946eea5d9ed32124ea3dc9c5eaf1491f77d4d45f270ae22dbb04",
+          "tests": {
+            "test1": {
+              "accepted": true,
+              "signal_length": 22528,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": true,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            },
+            "test2": {
+              "accepted": true,
+              "signal_length": 22528,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": true,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            }
+          }
+        },
+        {
+          "path": "drift.dat",
+          "serial_number": "SC_20_drift",
+          "sha256": "28243ba2ce75bb8cbe6a0c3a1fa6c8ef55f21ef0aeb6bc2ebb6c09fed31516ad",
+          "tests": {
+            "test1": {
+              "accepted": true,
+              "signal_length": 22528,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": true,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            },
+            "test2": {
+              "accepted": true,
+              "signal_length": 22528,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": true,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            }
+          }
+        },
+        {
+          "path": "high_noise.dat",
+          "serial_number": "SC_21_high_noise",
+          "sha256": "894fcf65c6d895bb63405fec3427dba8903971f1bf0edbd0b2c3e9cde80edaf6",
+          "tests": {
+            "test1": {
+              "accepted": true,
+              "signal_length": 22528,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": true,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            },
+            "test2": {
+              "accepted": true,
+              "signal_length": 22528,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": true,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            }
+          }
+        },
+        {
+          "path": "nan_value.dat",
+          "serial_number": "SC_22_nan_value",
+          "sha256": "0c87adc2e8160d3be00c5b27599efd68cf66483b3cc94ce3498695e10380d21b",
+          "tests": {
+            "test1": {
+              "accepted": true,
+              "signal_length": 22528,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": true,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 1
+            },
+            "test2": {
+              "accepted": true,
+              "signal_length": 22528,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": true,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 1
+            }
+          }
+        },
+        {
+          "path": "positive_infinity.dat",
+          "serial_number": "SC_23_positive_infinity",
+          "sha256": "a65d6233eebb77506e151a25a77631ac4fd8b1d993f817a1fca56ac1ca16689a",
+          "tests": {
+            "test1": {
+              "accepted": true,
+              "signal_length": 22528,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": true,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 1
+            },
+            "test2": {
+              "accepted": true,
+              "signal_length": 22528,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": true,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 1
+            }
+          }
+        },
+        {
+          "path": "negative_infinity.dat",
+          "serial_number": "SC_24_negative_infinity",
+          "sha256": "ef90fa9a3c5813ba35406a2472db533156c7c0cbdeae43d7dd5730bc91b33488",
+          "tests": {
+            "test1": {
+              "accepted": true,
+              "signal_length": 22528,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": true,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 1
+            },
+            "test2": {
+              "accepted": true,
+              "signal_length": 22528,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": true,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 1
+            }
+          }
+        },
+        {
+          "path": "missing_tests.dat",
+          "serial_number": "SC_25_missing_tests",
+          "sha256": "c1c7f5995af448ee51ac29e92e32a1fa32bae8cc7a52708b5703d3ff1f34058d",
+          "tests": {
+            "test1": {
+              "accepted": false
+            },
+            "test2": {
+              "accepted": false
+            }
+          }
+        },
+        {
+          "path": "unknown_test.dat",
+          "serial_number": "SC_26_unknown_test",
+          "sha256": "1122bcc1d6510af2c3153ac439df7d933a61c54b39e8690e7ffb98267ab7ff02",
+          "tests": {
+            "test1": {
+              "accepted": false
+            },
+            "test2": {
+              "accepted": false
+            }
+          }
+        },
+        {
+          "path": "missing_signals.dat",
+          "serial_number": "SC_27_missing_signals",
+          "sha256": "345a7c8571dc1cbdbd7423f8cc64236abfee07799ec5d08cef828214e138385d",
+          "tests": {
+            "test1": {
+              "accepted": false
+            },
+            "test2": {
+              "accepted": false
+            }
+          }
+        },
+        {
+          "path": "wrong_signal_name.dat",
+          "serial_number": "SC_28_wrong_signal_name",
+          "sha256": "81bb3e6776e5ad67f112941698ede1c6a6beace1063e961708e45ff84bded084",
+          "tests": {
+            "test1": {
+              "accepted": false
+            },
+            "test2": {
+              "accepted": false
+            }
+          }
+        },
+        {
+          "path": "uppercase_signal.dat",
+          "serial_number": "SC_29_uppercase_signal",
+          "sha256": "feb6425fcb71df95d0ea20045ed4a02a3fbb72603d13cde783052f5cffcbca52",
+          "tests": {
+            "test1": {
+              "accepted": true,
+              "signal_length": 22528,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": true,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            },
+            "test2": {
+              "accepted": true,
+              "signal_length": 22528,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": true,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            }
+          }
+        },
+        {
+          "path": "wrong_device.dat",
+          "serial_number": "SC_30_wrong_device",
+          "sha256": "463379bb6f4c0315970eb15d85a53dabde61d617832a3af5280158faeab91776",
+          "tests": {
+            "test1": {
+              "accepted": false
+            },
+            "test2": {
+              "accepted": false
+            }
+          }
+        },
+        {
+          "path": "empty_root.dat",
+          "serial_number": "SC_31_empty_root",
+          "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+          "tests": {
+            "test1": {
+              "accepted": false
+            },
+            "test2": {
+              "accepted": false
+            }
+          }
+        },
+        {
+          "path": "invalid_gzip.dat",
+          "serial_number": "SC_32_invalid_gzip",
+          "sha256": "bce36db5f87f9a824841f4b12593436c73ed1adb19e8e9ce82cbc0b0428a6e67",
+          "tests": {
+            "test1": {
+              "accepted": false
+            },
+            "test2": {
+              "accepted": false
+            }
+          }
+        },
+        {
+          "path": "invalid_protobuf.dat",
+          "serial_number": "SC_33_invalid_protobuf",
+          "sha256": "d017daf8adfc6fd8cb09735cb65075c59c54e87bb8cd7b82c3f079d64c22731b",
+          "tests": {
+            "test1": {
+              "accepted": false
+            },
+            "test2": {
+              "accepted": false
+            }
+          }
+        },
+        {
+          "path": "zero_byte_file.dat",
+          "serial_number": "SC_34_zero_byte_file",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "tests": {
+            "test1": {
+              "accepted": false
+            },
+            "test2": {
+              "accepted": false
+            }
+          }
+        },
+        {
+          "path": "ignored_extension.dat.gz",
+          "serial_number": "SC_35_ignored_extension",
+          "sha256": "ae6722dc22d5340077b7192d26be8d0a88e99c66581d1cdcd9da25c78f671995",
+          "tests": {
+            "test1": {
+              "accepted": false
+            },
+            "test2": {
+              "accepted": false
+            }
+          }
+        },
+        {
+          "path": "missing_test1.dat",
+          "serial_number": "SC_37_missing_test1",
+          "sha256": "6f310ef15230fbfd9d09af47d5d1dd5c705f5d4bef7dfbac5a3912ba03cd836f",
+          "tests": {
+            "test1": {
+              "accepted": false
+            },
+            "test2": {
+              "accepted": true,
+              "signal_length": 22528,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": true,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            }
+          }
+        },
+        {
+          "path": "missing_test2.dat",
+          "serial_number": "SC_38_missing_test2",
+          "sha256": "745a25beef60c4e8ce8f3ba3a3899a25f02c1a2f0499939b29d500066cc6f507",
+          "tests": {
+            "test1": {
+              "accepted": true,
+              "signal_length": 22528,
+              "expected_length": 22528,
+              "loaded_length": 22528,
+              "length_matches_expected": true,
+              "all_zero_after_loading": false,
+              "nonfinite_count": 0
+            },
+            "test2": {
+              "accepted": false
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

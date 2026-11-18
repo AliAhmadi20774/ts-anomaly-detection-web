@@ -1,0 +1,19 @@
+{
+  "path": "test1_only.dat",
+  "serial_number": "SC_TEST1_ONLY",
+  "sha256": "8451eec3f43eb3bce3c426995435786a6bb7ee81d9243e54fcde7355df7efd56",
+  "tests": {
+    "test1": {
+      "accepted": true,
+      "signal_length": 22528,
+      "expected_length": 22528,
+      "loaded_length": 22528,
+      "length_matches_expected": true,
+      "all_zero_after_loading": false,
+      "nonfinite_count": 0
+    },
+    "test2": {
+      "accepted": false
+    }
+  }
+}

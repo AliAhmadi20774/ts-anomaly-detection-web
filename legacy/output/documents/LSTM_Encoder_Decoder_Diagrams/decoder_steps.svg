@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2800" height="900" viewBox="0 0 2800 900"><defs><marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="5" orient="auto" markerUnits="strokeWidth"><path d="M0 0 L10 5 L0 10 Z" fill="#536C82"/></marker></defs><rect width="2800" height="900" fill="white"/>
+<text x="1400" y="76" text-anchor="middle" font-family="Arial" font-size="60" font-weight="700" fill="#152536">DECODER  |  reverse reconstruction in the project</text>
+<rect x="400" y="125" width="550" height="150" rx="24" fill="#EDF6F2" stroke="#536C82" stroke-width="4"/>
+<text x="675" y="185" text-anchor="middle" font-family="Arial" font-size="43" font-weight="700" fill="#152536">Encoder final state</text>
+<text x="675" y="246" text-anchor="middle" font-family="Cambria Math" font-size="53" font-weight="400" fill="#152536">h<tspan baseline-shift="sub" font-size="65%">L</tspan>, c<tspan baseline-shift="sub" font-size="65%">L</tspan></text>
+<polyline points="675,285 675,425" fill="none" stroke="#536C82" stroke-width="5" stroke-linejoin="round"  marker-end="url(#arrow)"/>
+<text x="635" y="415" text-anchor="end" font-family="Arial" font-size="39" font-weight="400" fill="#152536">step L</text>
+<rect x="35" y="470" width="285" height="145" rx="24" fill="#EDF6F2" stroke="#536C82" stroke-width="4"/>
+<text x="177" y="527" text-anchor="middle" font-family="Arial" font-size="38" font-weight="400" fill="#152536">actual input</text>
+<text x="177" y="587" text-anchor="middle" font-family="Cambria Math" font-size="60" font-weight="400" fill="#152536">x<tspan baseline-shift="sub" font-size="65%">L</tspan></text>
+<rect x="470" y="445" width="410" height="205" rx="24" fill="#E8F0F7" stroke="#536C82" stroke-width="4"/>
+<text x="675" y="522" text-anchor="middle" font-family="Arial" font-size="59" font-weight="700" fill="#152536">LSTM</text>
+<text x="675" y="590" text-anchor="middle" font-family="Arial" font-size="48" font-weight="400" fill="#152536">decoder</text>
+<rect x="1030" y="470" width="300" height="145" rx="24" fill="#FCF1D9" stroke="#536C82" stroke-width="4"/>
+<text x="1180" y="558" text-anchor="middle" font-family="Arial" font-size="55" font-weight="700" fill="#152536">Linear</text>
+<polyline points="330,543 450,543" fill="none" stroke="#536C82" stroke-width="5" stroke-linejoin="round"  marker-end="url(#arrow)"/>
+<polyline points="895,543 1010,543" fill="none" stroke="#536C82" stroke-width="5" stroke-linejoin="round"  marker-end="url(#arrow)"/>
+<rect x="1630" y="445" width="410" height="205" rx="24" fill="#E8F0F7" stroke="#536C82" stroke-width="4"/>
+<text x="1835" y="522" text-anchor="middle" font-family="Arial" font-size="59" font-weight="700" fill="#152536">LSTM</text>
+<text x="1835" y="590" text-anchor="middle" font-family="Arial" font-size="48" font-weight="400" fill="#152536">decoder</text>
+<rect x="2190" y="470" width="300" height="145" rx="24" fill="#FCF1D9" stroke="#536C82" stroke-width="4"/>
+<text x="2340" y="558" text-anchor="middle" font-family="Arial" font-size="55" font-weight="700" fill="#152536">Linear</text>
+<polyline points="1345,543 1610,543" fill="none" stroke="#536C82" stroke-width="5" stroke-linejoin="round"  marker-end="url(#arrow)"/>
+<text x="1475" y="500" text-anchor="middle" font-family="Cambria Math" font-size="61" font-weight="400" fill="#152536">x̂<tspan baseline-shift="sub" font-size="65%">L</tspan></text>
+<polyline points="2055,543 2170,543" fill="none" stroke="#536C82" stroke-width="5" stroke-linejoin="round"  marker-end="url(#arrow)"/>
+<polyline points="2505,543 2740,543" fill="none" stroke="#536C82" stroke-width="5" stroke-linejoin="round"  marker-end="url(#arrow)"/>
+<text x="2620" y="494" text-anchor="middle" font-family="Cambria Math" font-size="56" font-weight="400" fill="#152536">x̂<tspan baseline-shift="sub" font-size="65%">L−1</tspan></text>
+<polyline points="825,440 825,330 1835,330 1835,425" fill="none" stroke="#536C82" stroke-width="5" stroke-linejoin="round"  marker-end="url(#arrow)"/>
+<text x="1370" y="294" text-anchor="middle" font-family="Arial" font-size="40" font-weight="400" fill="#152536">updated hidden and cell states</text>
+<text x="2070" y="415" text-anchor="end" font-family="Arial" font-size="39" font-weight="400" fill="#152536">step L−1</text>
+<text x="1400" y="745" text-anchor="middle" font-family="Arial" font-size="48" font-weight="700" fill="#152536">Each reconstruction becomes the next decoder input.</text>
+<text x="1400" y="825" text-anchor="middle" font-family="Arial" font-size="44" font-weight="400" fill="#152536">Repeat until the first point; store outputs at their original time positions.</text></svg>

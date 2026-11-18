@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+message Array_ProtoDevice {
+    repeated ProtoDevice items = 1;
+}
+
+message GenericTableData {
+    repeated string ColumnNames = 1;
+    repeated string FlattendRows = 2;
+    int32 ColumnCount = 3;
+}
+
+message ProtoDevice {
+    string deviceSeries = 1;
+    string serialNumber = 2;
+    repeated ProtoTestResult testResult = 3;
+}
+
+message ProtoSignal {
+    string name = 1;
+    repeated double data = 2 [packed = false];
+}
+
+message ProtoTestResult {
+    string testName = 1;
+    repeated ProtoSignal signals = 2;
+}

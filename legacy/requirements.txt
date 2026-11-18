@@ -1,0 +1,10 @@
+torch
+numpy
+pandas
+matplotlib
+protobuf
+grpcio-tools
+tqdm
+pytest
+plotly
+reportlab

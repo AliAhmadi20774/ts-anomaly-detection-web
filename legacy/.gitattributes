@@ -1,0 +1,29 @@
+# Normalize line endings to LF
+* text=auto eol=lf
+
+# These files are text and should be normalized to LF
+*.py text eol=lf
+*.txt text eol=lf
+*.md text eol=lf
+*.json text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.gitignore text eol=lf
+*.gitattributes text eol=lf
+
+# These files are binary and should not be normalized
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.bmp binary
+*.ico binary
+*.pyc binary
+*.pyo binary
+*.pyd binary
+*.so binary
+*.dll binary
+*.exe binary
+*.dat binary
+*.pt binary
+*.pth binary

@@ -1,6 +1,3 @@
-3.# Previous project retained locally; excluded from the new project repository.
-/legacy/
-
 # Python bytecode and compiled extensions
 __pycache__/
 *.py[cod]
