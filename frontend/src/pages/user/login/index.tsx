@@ -1,27 +1,25 @@
 import { LockOutlined, UserOutlined } from '@ant-design/icons';
 import { LoginForm, ProFormText } from '@ant-design/pro-components';
 import { Helmet, history, useModel } from '@umijs/max';
-import { Alert, App } from 'antd';
+import { Alert } from 'antd';
 import { useEffect, useState } from 'react';
-import { login } from '@/services/ant-design-pro/api';
+import { type LoginParams, signIn } from '@/services/auth';
 import settings from '../../../../config/defaultSettings';
 
 function getSafeRedirectUrl(redirect: string | null): string {
   if (!redirect?.startsWith('/') || redirect.startsWith('//')) return '/';
   try {
     const url = new URL(redirect, window.location.origin);
-    return url.origin === window.location.origin
-      ? `${url.pathname}${url.search}${url.hash}`
-      : '/';
+    return url.origin === window.location.origin && url.pathname !== '/user/login'
+      ? `${url.pathname}${url.search}${url.hash}` : '/';
   } catch {
     return '/';
   }
 }
 
 export default function Login() {
-  const [invalidCredentials, setInvalidCredentials] = useState(false);
+  const [error, setError] = useState<string>();
   const { initialState, setInitialState } = useModel('@@initialState');
-  const { message } = App.useApp();
 
   useEffect(() => {
     if (initialState?.currentUser) {
@@ -30,20 +28,14 @@ export default function Login() {
     }
   }, [initialState?.currentUser]);
 
-  const handleSubmit = async (values: API.LoginParams) => {
-    setInvalidCredentials(false);
+  const handleSubmit = async (values: LoginParams) => {
+    setError(undefined);
     try {
-      const result = await login({ ...values, type: 'account' });
-      if (result.status !== 'ok') {
-        setInvalidCredentials(true);
-        return false;
-      }
-      const currentUser = await initialState?.fetchUserInfo?.();
-      if (!currentUser) throw new Error('Unable to load the account.');
+      const currentUser = await signIn(values);
       await setInitialState((state) => ({ ...state, currentUser }));
       return true;
-    } catch {
-      message.error('Sign in failed. Please try again.');
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : 'Sign in failed.');
       return false;
     }
   };
@@ -51,31 +43,22 @@ export default function Login() {
   return (
     <div className="login-page">
       <Helmet><title>Sign in - {settings.title}</title></Helmet>
-      <LoginForm<API.LoginParams>
+      <LoginForm<LoginParams>
         logo={<img alt="" src="/logo.svg" />}
         title={settings.title}
-        subTitle="Demo account: admin / ant.design"
+        subTitle="Sign in with your personnel code."
         contentStyle={{ width: '100%', maxWidth: 360 }}
         submitter={{ searchConfig: { submitText: 'Sign in' } }}
         onFinish={handleSubmit}
       >
-        {invalidCredentials && (
-          <Alert
-            type="error"
-            showIcon
-            title="Incorrect username or password."
-            style={{ marginBottom: 24 }}
-          />
-        )}
+        {error && <Alert type="error" showIcon title={error} style={{ marginBottom: 24 }} />}
         <ProFormText
-          name="username"
-          label="Username"
+          name="username" label="Personnel code"
           fieldProps={{ prefix: <UserOutlined />, autoComplete: 'username' }}
-          rules={[{ required: true, message: 'Enter your username.' }]}
+          rules={[{ required: true, message: 'Enter your personnel code.' }]}
         />
         <ProFormText.Password
-          name="password"
-          label="Password"
+          name="password" label="Password"
           fieldProps={{ prefix: <LockOutlined />, autoComplete: 'current-password' }}
           rules={[{ required: true, message: 'Enter your password.' }]}
         />

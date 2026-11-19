@@ -1,11 +1,11 @@
-/**
- * @see https://umijs.org/docs/max/access#access
- * */
-export default function access(
-  initialState: { currentUser?: API.CurrentUser } | undefined,
-) {
-  const { currentUser } = initialState ?? {};
+import { type CurrentUser, hasPermission } from '@/services/auth';
+
+export default function access(initialState: { currentUser?: CurrentUser } | undefined) {
+  const user = initialState?.currentUser;
   return {
-    canAdmin: currentUser && currentUser.access === 'admin',
+    canAdmin: Boolean(user?.is_superuser),
+    canViewDeviceTypes: hasPermission(user, 'devices.view_devicetype'),
+    canViewTestDefinitions: hasPermission(user, 'devices.view_testdefinition'),
+    canViewSignalDefinitions: hasPermission(user, 'devices.view_signaldefinition'),
   };
 }

@@ -1,64 +1,27 @@
 import { describe, expect, it } from 'vitest';
 import access from './access';
+import type { CurrentUser } from './services/auth';
 
-describe('access', () => {
-  it('should return canAdmin true when user has admin access', () => {
-    const initialState = {
-      currentUser: {
-        userid: '1',
-        name: 'Admin User',
-        avatar: 'https://example.com/avatar.png',
-        access: 'admin',
-      },
-    };
+const user: CurrentUser = {
+  id: 2, username: '002', name: '002', is_superuser: false,
+  permissions: ['devices.view_testdefinition'],
+};
 
-    const result = access(initialState);
-
-    expect(result.canAdmin).toBe(true);
+describe('Django permissions', () => {
+  it('shows only the definition pages allowed by backend permissions', () => {
+    expect(access({ currentUser: user })).toEqual({
+      canAdmin: false, canViewDeviceTypes: false,
+      canViewTestDefinitions: true, canViewSignalDefinitions: false,
+    });
   });
 
-  it('should return canAdmin false when user has non-admin access', () => {
-    const initialState = {
-      currentUser: {
-        userid: '2',
-        name: 'Regular User',
-        avatar: 'https://example.com/avatar.png',
-        access: 'user',
-      },
-    };
-
-    const result = access(initialState);
-
-    expect(result.canAdmin).toBe(false);
+  it('allows a superuser to access every definition page', () => {
+    expect(Object.values(access({
+      currentUser: { ...user, is_superuser: true, permissions: [] },
+    })).every(Boolean)).toBe(true);
   });
 
-  it('should return canAdmin false when user access is undefined', () => {
-    const initialState = {
-      currentUser: {
-        userid: '3',
-        name: 'Guest User',
-        avatar: 'https://example.com/avatar.png',
-      },
-    };
-
-    const result = access(initialState);
-
-    expect(result.canAdmin).toBe(false);
-  });
-
-  it('should return canAdmin false when currentUser is undefined', () => {
-    const initialState = {
-      currentUser: undefined,
-    };
-
-    const result = access(initialState);
-
-    expect(result.canAdmin).toBeFalsy();
-  });
-
-  it('should return canAdmin false when initialState is undefined', () => {
-    const result = access(undefined);
-
-    expect(result.canAdmin).toBeFalsy();
+  it('does not grant access without an authenticated user', () => {
+    expect(Object.values(access(undefined)).some(Boolean)).toBe(false);
   });
 });

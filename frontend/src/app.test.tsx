@@ -1,135 +1,62 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-// Mock all heavy dependencies before importing app
-const mockReplace = vi.fn();
-const mockHistory = {
-  location: {
-    pathname: '/welcome',
-    search: '',
-    hash: '',
+const { mockGetUser, mockHistory } = vi.hoisted(() => ({
+  mockGetUser: vi.fn(),
+  mockHistory: {
+    location: { pathname: '/device-types', search: '', hash: '' },
+    replace: vi.fn(),
   },
-  replace: mockReplace,
-};
-
-const mockQueryCurrentUser = vi.fn();
+}));
 
 vi.mock('@umijs/max', () => ({
-  history: mockHistory,
-  Link: ({ children }: any) => children,
+  history: mockHistory, Link: ({ children }: { children: unknown }) => children,
 }));
-
-vi.mock('@/services/ant-design-pro/api', () => ({
-  currentUser: mockQueryCurrentUser,
-}));
-
+vi.mock('@/services/auth', () => ({ getCurrentUser: mockGetUser }));
 vi.mock('@/components/ErrorBoundary', () => ({
-  default: ({ children }: any) => children,
+  default: ({ children }: { children: unknown }) => children,
 }));
 vi.mock('@/components/OfflineBanner', () => ({ default: () => null }));
-vi.mock('@/components/RightContent/AvatarDropdown', () => ({
-  AvatarDropdown: () => null,
-}));
+vi.mock('@/components/RightContent/AvatarDropdown', () => ({ AvatarDropdown: () => null }));
+vi.mock('./requestErrorConfig', () => ({ errorConfig: {} }));
+vi.mock('../config/defaultSettings', () => ({ default: { navTheme: 'light' } }));
 
-vi.mock('./requestErrorConfig', () => ({
-  errorConfig: {},
-}));
+const user = {
+  id: 1, username: '001', name: '001', is_superuser: true, permissions: [],
+};
 
-vi.mock('../config/defaultSettings', () => ({
-  default: { navTheme: 'light' },
-}));
-
-describe('app getInitialState', () => {
+describe('Django session restoration', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockHistory.location = {
-      pathname: '/welcome',
-      search: '',
-      hash: '',
-    };
+    mockHistory.location = { pathname: '/device-types', search: '', hash: '' };
   });
 
-  it('should fetch currentUser when not on login page', async () => {
+  it('restores the current Django user and layout settings', async () => {
+    mockGetUser.mockResolvedValue(user);
     const { getInitialState } = await import('./app');
-    mockQueryCurrentUser.mockResolvedValue({
-      data: {
-        name: 'Test User',
-        access: 'admin',
-      },
-    });
-
     const state = await getInitialState();
-
-    expect(mockQueryCurrentUser).toHaveBeenCalled();
-    expect(state.currentUser).toEqual({
-      name: 'Test User',
-      access: 'admin',
-    });
-    expect(state.fetchUserInfo).toBeDefined();
-  });
-
-  it('should redirect to login when currentUser fetch fails (401)', async () => {
-    const { getInitialState } = await import('./app');
-    mockQueryCurrentUser.mockRejectedValue(new Error('401 Unauthorized'));
-
-    const state = await getInitialState();
-
-    expect(mockReplace).toHaveBeenCalledWith(
-      expect.stringContaining('/user/login?redirect='),
-    );
-    expect(state.currentUser).toBeUndefined();
-  });
-
-  it('should not fetch currentUser on login page', async () => {
-    const { getInitialState } = await import('./app');
-    mockHistory.location = {
-      pathname: '/user/login',
-      search: '',
-      hash: '',
-    };
-
-    const state = await getInitialState();
-
-    expect(mockQueryCurrentUser).not.toHaveBeenCalled();
-    expect(state.currentUser).toBeUndefined();
-    expect(state.fetchUserInfo).toBeDefined();
-  });
-
-  it('should encode redirect path correctly on 401', async () => {
-    const { getInitialState } = await import('./app');
-    mockHistory.location = {
-      pathname: '/admin/users',
-      search: '?page=2',
-      hash: '#section',
-    };
-    mockQueryCurrentUser.mockRejectedValue(new Error('401'));
-
-    await getInitialState();
-
-    expect(mockReplace).toHaveBeenCalledWith(
-      `/user/login?redirect=${encodeURIComponent('/admin/users?page=2#section')}`,
-    );
-  });
-
-  it('should include default settings in initial state', async () => {
-    const { getInitialState } = await import('./app');
-    mockQueryCurrentUser.mockResolvedValue({
-      data: { name: 'User' },
-    });
-
-    const state = await getInitialState();
-
+    expect(state.currentUser).toEqual(user);
     expect(state.settings).toEqual({ navTheme: 'light' });
   });
 
-  it('fetchUserInfo should return user data on success', async () => {
+  it('restores an existing session even on the sign-in page', async () => {
+    mockHistory.location.pathname = '/user/login';
+    mockGetUser.mockResolvedValue(user);
     const { getInitialState } = await import('./app');
-    mockQueryCurrentUser.mockResolvedValue({
-      data: { name: 'Fetched User', access: 'user' },
-    });
+    expect((await getInitialState()).currentUser).toEqual(user);
+  });
 
+  it('returns an unauthenticated state when no Django session exists', async () => {
+    mockGetUser.mockRejectedValue(new Error('Sign in required'));
+    const { getInitialState } = await import('./app');
+    expect((await getInitialState()).currentUser).toBeUndefined();
+  });
+
+  it('can refresh user information after the session changes', async () => {
+    mockGetUser.mockResolvedValue(user);
+    const { getInitialState } = await import('./app');
     const state = await getInitialState();
-
-    const user = await state.fetchUserInfo?.();
-    expect(user).toEqual({ name: 'Fetched User', access: 'user' });
+    const updated = { ...user, name: 'Updated name' };
+    mockGetUser.mockResolvedValue(updated);
+    expect(await state.fetchUserInfo?.()).toEqual(updated);
   });
 });

@@ -1,4 +1,7 @@
 export default {
+  'menu.device-types': 'Device types',
+  'menu.test-definitions': 'Test definitions',
+  'menu.signal-definitions': 'Signal definitions',
   'menu.backend-status': 'Backend connection',
   'menu.welcome': 'Welcome',
   'menu.more-blocks': 'More Blocks',

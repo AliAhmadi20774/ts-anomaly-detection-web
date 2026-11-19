@@ -18,12 +18,6 @@ export default function BackendStatus() {
       subTitle="Check the connection to the Python API."
     >
       <Space orientation="vertical" size="large" style={{ width: '100%' }}>
-        <Alert
-          type="info"
-          showIcon
-          title="Template preview"
-          description="This page uses the real API. Account login is a development-only demo."
-        />
         <Card
           title="API health"
           extra={

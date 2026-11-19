@@ -1,26 +1,22 @@
 export default [
+  { path: '/user/login', name: 'login', layout: false, component: './user/login' },
+  { path: '/user', redirect: '/user/login' },
   {
-    path: '/user/login',
-    name: 'login',
-    layout: false,
-    component: './user/login',
+    path: '/device-types', name: 'device-types', icon: 'appstore',
+    component: './DeviceTypes', access: 'canViewDeviceTypes',
   },
   {
-    path: '/user',
-    redirect: '/user/login',
+    path: '/test-definitions', name: 'test-definitions', icon: 'experiment',
+    component: './TestDefinitions', access: 'canViewTestDefinitions',
   },
   {
-    path: '/backend-status',
-    name: 'backend-status',
-    icon: 'api',
+    path: '/signal-definitions', name: 'signal-definitions', icon: 'lineChart',
+    component: './SignalDefinitions', access: 'canViewSignalDefinitions',
+  },
+  {
+    path: '/backend-status', name: 'backend-status', icon: 'api',
     component: './BackendStatus',
   },
-  {
-    path: '/',
-    redirect: '/backend-status',
-  },
-  {
-    path: '/*',
-    component: './exception/404',
-  },
+  { path: '/', redirect: '/backend-status' },
+  { path: '/*', component: './exception/404' },
 ];

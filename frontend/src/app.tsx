@@ -5,7 +5,7 @@ import type { ReactNode } from 'react';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import OfflineBanner from '@/components/OfflineBanner';
 import { AvatarDropdown } from '@/components/RightContent/AvatarDropdown';
-import { currentUser as queryCurrentUser } from '@/services/ant-design-pro/api';
+import { type CurrentUser, getCurrentUser } from '@/services/auth';
 import defaultSettings from '../config/defaultSettings';
 import { errorConfig } from './requestErrorConfig';
 
@@ -13,18 +13,13 @@ const loginPath = '/user/login';
 
 export async function getInitialState(): Promise<{
   settings?: Partial<LayoutSettings>;
-  currentUser?: API.CurrentUser;
-  fetchUserInfo?: () => Promise<API.CurrentUser | undefined>;
+  currentUser?: CurrentUser;
+  fetchUserInfo?: () => Promise<CurrentUser | undefined>;
 }> {
   const fetchUserInfo = async () => {
     try {
-      const response = await queryCurrentUser({ skipErrorHandler: true });
-      return response.data;
+      return await getCurrentUser();
     } catch {
-      const { pathname, search, hash } = history.location;
-      history.replace(
-        `${loginPath}?redirect=${encodeURIComponent(pathname + search + hash)}`,
-      );
       return undefined;
     }
   };
@@ -32,8 +27,7 @@ export async function getInitialState(): Promise<{
   return {
     settings: defaultSettings,
     fetchUserInfo,
-    currentUser:
-      history.location.pathname === loginPath ? undefined : await fetchUserInfo(),
+    currentUser: await fetchUserInfo(),
   };
 }
 
@@ -52,9 +46,7 @@ export const layout: RunTimeLayoutConfig = ({ initialState }) => ({
   onPageChange: () => {
     const { pathname, search, hash } = history.location;
     if (!initialState?.currentUser && pathname !== loginPath) {
-      history.replace(
-        `${loginPath}?redirect=${encodeURIComponent(pathname + search + hash)}`,
-      );
+      history.replace(`${loginPath}?redirect=${encodeURIComponent(pathname + search + hash)}`);
     }
   },
 });
@@ -62,10 +54,5 @@ export const layout: RunTimeLayoutConfig = ({ initialState }) => ({
 export const request: RequestConfig = { baseURL: '', ...errorConfig };
 
 export function rootContainer(container: ReactNode) {
-  return (
-    <>
-      <OfflineBanner />
-      <ErrorBoundary>{container}</ErrorBoundary>
-    </>
-  );
+  return <><OfflineBanner /><ErrorBoundary>{container}</ErrorBoundary></>;
 }
