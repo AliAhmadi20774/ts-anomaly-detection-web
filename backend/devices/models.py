@@ -7,6 +7,8 @@ from django.db.models.functions import Length, Trim
 from django.db.models.lookups import GreaterThan
 from django.utils import timezone
 
+from devices.validators import FlatResultDataValidator
+
 
 class DeviceType(models.Model):
     """Define a device type independently of individual serial numbers."""
@@ -92,6 +94,7 @@ class TestRun(models.Model):
     recorded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="test_runs")
     created_at = models.DateTimeField(auto_now_add=True)
     notes = models.TextField(blank=True)
+    flat_result_data = models.JSONField(null=True, blank=True, validators=[FlatResultDataValidator()])
 
     class Meta:
         db_table = "test_runs"

@@ -12,6 +12,7 @@ from devices.serializers import (
     SignalDefinitionSerializer,
     TestDefinitionSerializer,
     TestRunSerializer,
+    TestRunListSerializer,
 )
 
 
@@ -64,6 +65,13 @@ class TestRunViewSet(ProtectedModelViewSet):
     serializer_class = TestRunSerializer
     filterset_fields = ["test", "device_type"]
     search_fields = ["device_serial_number", "test__name", "device_type__name"]
+
+    def get_serializer_class(self):
+        return TestRunListSerializer if self.action == "list" else TestRunSerializer
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        return queryset.defer("flat_result_data") if self.action == "list" else queryset
 
     def perform_create(self, serializer) -> None:
         serializer.save(recorded_by=self.request.user)

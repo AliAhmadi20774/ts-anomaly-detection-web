@@ -48,6 +48,7 @@ class TestRunSerializer(serializers.ModelSerializer):
         fields = (
             "id", "test", "test_name", "device_serial_number", "device_type", "device_type_name",
             "sample_rate_hz", "executed_at", "recorded_by", "recorded_by_code", "created_at", "notes",
+            "flat_result_data",
         )
         read_only_fields = ("id", "device_type", "sample_rate_hz", "recorded_by", "created_at")
 
@@ -56,3 +57,8 @@ class TestRunSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("The test definition cannot be changed after recording a run.")
 
         return value
+
+
+class TestRunListSerializer(TestRunSerializer):
+    class Meta(TestRunSerializer.Meta):
+        fields = tuple(field for field in TestRunSerializer.Meta.fields if field != "flat_result_data")
