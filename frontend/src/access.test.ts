@@ -12,6 +12,7 @@ describe('Django permissions', () => {
     expect(access({ currentUser: user })).toEqual({
       canAdmin: false, canViewDeviceTypes: false,
       canViewTestDefinitions: true, canViewSignalDefinitions: false,
+      canViewTestRuns: false,
     });
   });
 
@@ -23,5 +24,13 @@ describe('Django permissions', () => {
 
   it('does not grant access without an authenticated user', () => {
     expect(Object.values(access(undefined)).some(Boolean)).toBe(false);
+  });
+
+  it('grants run access independently of definition access', () => {
+    const permissions = access({ currentUser: {
+      ...user, permissions: ['devices.view_testrun'],
+    } });
+    expect(permissions.canViewTestRuns).toBe(true);
+    expect(permissions.canViewTestDefinitions).toBe(false);
   });
 });

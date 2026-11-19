@@ -7,5 +7,6 @@ export default function access(initialState: { currentUser?: CurrentUser } | und
     canViewDeviceTypes: hasPermission(user, 'devices.view_devicetype'),
     canViewTestDefinitions: hasPermission(user, 'devices.view_testdefinition'),
     canViewSignalDefinitions: hasPermission(user, 'devices.view_signaldefinition'),
+    canViewTestRuns: hasPermission(user, 'devices.view_testrun'),
   };
 }

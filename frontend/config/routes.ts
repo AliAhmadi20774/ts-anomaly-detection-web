@@ -14,6 +14,10 @@ export default [
     component: './SignalDefinitions', access: 'canViewSignalDefinitions',
   },
   {
+    path: '/test-runs', name: 'test-runs', icon: 'playCircle',
+    component: './TestRuns', access: 'canViewTestRuns',
+  },
+  {
     path: '/backend-status', name: 'backend-status', icon: 'api',
     component: './BackendStatus',
   },
