@@ -1,3 +1,5 @@
-fastapi==0.163.2
-pydantic==2.14.3
+Django==5.2.19
+djangorestframework==3.18.3
+django-filter==26.2
+psycopg[binary]==3.3.8
 uvicorn==0.54.0

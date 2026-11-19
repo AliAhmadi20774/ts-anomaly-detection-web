@@ -10,10 +10,14 @@ RUN python -m pip install --no-cache-dir -r requirements.txt
 
 RUN useradd --create-home --uid 10001 appuser
 
-COPY app/ ./app/
+COPY manage.py .
+COPY config/ ./config/
+COPY health/ ./health/
+COPY devices/ ./devices/
+COPY accounts/ ./accounts/
 
 USER appuser
 
 EXPOSE 8000
 
-CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["python", "-m", "uvicorn", "config.asgi:application", "--host", "0.0.0.0", "--port", "8000"]

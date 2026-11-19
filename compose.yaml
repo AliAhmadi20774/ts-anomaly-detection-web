@@ -4,6 +4,19 @@ services:
       context: ./backend
     ports:
       - "127.0.0.1:8000:8000"
+    environment:
+      DJANGO_DEBUG: ${DJANGO_DEBUG:-true}
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-}
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,backend}
+      PGHOST: ${PGHOST:-shared-postgres}
+      PGPORT: ${PGPORT:-5432}
+      PGDATABASE: ${PGDATABASE:-anomaly_detection}
+      PGUSER: ${PGUSER:-anomaly_app}
+      PGPASSWORD: ${PGPASSWORD:?Set PGPASSWORD in .env}
+      PGSSLMODE: ${PGSSLMODE:-prefer}
+    networks:
+      - default
+      - database
     healthcheck:
       test:
         - CMD
@@ -19,6 +32,9 @@ services:
     build:
       context: ./frontend
     init: true
+    volumes:
+      - ./frontend/src:/app/src
+      - ./frontend/config:/app/config
     ports:
       - "127.0.0.1:3000:8000"
     environment:
@@ -36,3 +52,8 @@ services:
       timeout: 5s
       retries: 6
       start_period: 60s
+
+networks:
+  database:
+    external: true
+    name: ${POSTGRES_NETWORK:-shared-postgres-network}
