@@ -35,10 +35,11 @@ export default defineConfig({
   reactQuery: {},
   access: {},
   headScripts: [{ src: '/scripts/loading.js', async: true }],
-  // Only demo account login is needed until real authentication is added.
-  mock: { exclude: ['mock/!(user).ts'] },
+
+  mock: false,
+  // Keep eager loading in development to prevent lazy-chunk HMR reload loops.
   utoopack: {
-    devServer: { dynamicHmrChunkLists: true, lazyDynamicImports: true },
+    devServer: { dynamicHmrChunkLists: false, lazyDynamicImports: false },
   },
   define: {
     'process.env.COMMIT_HASH': '',
