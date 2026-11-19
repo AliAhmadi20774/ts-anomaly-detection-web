@@ -38,14 +38,15 @@ export async function apiRequest<T>(path: string, options: ApiOptions = {}): Pro
     if (value !== undefined && value !== '') query.set(key, String(value));
   }
   const headers: Record<string, string> = { Accept: 'application/json' };
-  if (data !== undefined) headers['Content-Type'] = 'application/json';
+  const isFormData = data instanceof FormData;
+  if (data !== undefined && !isFormData) headers['Content-Type'] = 'application/json';
   if (method !== 'GET') headers['X-CSRFToken'] = csrfCookie();
 
   let response: Response;
   try {
     response = await fetch(`/backend/api${path}${query.size ? `?${query}` : ''}`, {
       method, headers, credentials: 'same-origin', mode: 'same-origin', cache: 'no-store',
-      body: data === undefined ? undefined : JSON.stringify(data), signal,
+      body: isFormData ? data : data === undefined ? undefined : JSON.stringify(data), signal,
     });
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') throw error;

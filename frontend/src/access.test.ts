@@ -13,6 +13,7 @@ describe('Django permissions', () => {
       canAdmin: false, canViewDeviceTypes: false,
       canViewTestDefinitions: true, canViewSignalDefinitions: false,
       canViewTestRuns: false,
+      canPreviewDat: false,
     });
   });
 

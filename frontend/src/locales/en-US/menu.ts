@@ -3,6 +3,7 @@ export default {
   'menu.test-definitions': 'Test definitions',
   'menu.signal-definitions': 'Signal definitions',
   'menu.test-runs': 'Test runs',
+  'menu.dat-preview': 'DAT file preview',
   'menu.backend-status': 'Backend connection',
   'menu.welcome': 'Welcome',
   'menu.more-blocks': 'More Blocks',

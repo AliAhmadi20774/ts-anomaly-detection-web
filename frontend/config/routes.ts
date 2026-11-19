@@ -18,6 +18,10 @@ export default [
     component: './TestRuns', access: 'canViewTestRuns',
   },
   {
+    path: '/dat-preview', name: 'dat-preview', icon: 'upload',
+    component: './DatPreview', access: 'canPreviewDat',
+  },
+  {
     path: '/backend-status', name: 'backend-status', icon: 'api',
     component: './BackendStatus',
   },

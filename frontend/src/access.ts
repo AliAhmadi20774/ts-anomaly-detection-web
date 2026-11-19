@@ -8,5 +8,7 @@ export default function access(initialState: { currentUser?: CurrentUser } | und
     canViewTestDefinitions: hasPermission(user, 'devices.view_testdefinition'),
     canViewSignalDefinitions: hasPermission(user, 'devices.view_signaldefinition'),
     canViewTestRuns: hasPermission(user, 'devices.view_testrun'),
+    canPreviewDat: ['devices.add_testrun', 'devices.view_devicetype', 'devices.view_testdefinition', 'devices.view_signaldefinition']
+      .every((permission) => hasPermission(user, permission)),
   };
 }
