@@ -1,7 +1,7 @@
 from rest_framework.permissions import DjangoModelPermissions
 
 
-class DefinitionPermissions(DjangoModelPermissions):
+class ModelPermissions(DjangoModelPermissions):
     """Require Django's view permission for reads as well as write permissions."""
 
     perms_map = {
