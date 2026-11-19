@@ -23,5 +23,8 @@ message ProtoSignal {
 
 message ProtoTestResult {
     string testName = 1;
-    repeated ProtoSignal signals = 2;
+    string operatorName = 2;
+    string date = 3;
+    repeated ProtoSignal signals = 4;
+    GenericTableData flatResultDataTable = 5;
 }

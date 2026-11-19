@@ -3,3 +3,4 @@ djangorestframework==3.18.3
 django-filter==26.2
 psycopg[binary]==3.3.8
 uvicorn==0.54.0
+protobuf==7.36.2

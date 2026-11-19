@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package anomaly_dat_legacy;
+
+message Array_ProtoDevice {
+    repeated ProtoDevice items = 1;
+}
+
+message ProtoDevice {
+    string deviceSeries = 1;
+    string serialNumber = 2;
+    repeated ProtoTestResult testResult = 3;
+}
+
+message ProtoSignal {
+    string name = 1;
+    repeated double data = 2 [packed = false];
+}
+
+message ProtoTestResult {
+    string testName = 1;
+    repeated ProtoSignal signals = 2;
+}

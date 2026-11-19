@@ -30,6 +30,7 @@ INSTALLED_APPS = [
     "django_filters",
     "health.apps.HealthConfig",
     "devices.apps.DevicesConfig",
+    "dat_imports.apps.DatImportsConfig",
 ]
 
 MIDDLEWARE = [

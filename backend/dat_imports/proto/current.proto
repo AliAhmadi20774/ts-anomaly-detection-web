@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+package anomaly_dat_current;
+
+message Array_ProtoDevice {
+    repeated ProtoDevice items = 1;
+}
+
+message GenericTableData {
+    repeated string ColumnNames = 1;
+    repeated string FlattendRows = 2;
+    int32 ColumnCount = 3;
+}
+
+message ProtoDevice {
+    string deviceSeries = 1;
+    string serialNumber = 2;
+    repeated ProtoTestResult testResult = 3;
+}
+
+message ProtoSignal {
+    string name = 1;
+    repeated double data = 2 [packed = false];
+}
+
+message ProtoTestResult {
+    string testName = 1;
+    string operatorName = 2;
+    string date = 3;
+    repeated ProtoSignal signals = 4;
+    GenericTableData flatResultDataTable = 5;
+}
