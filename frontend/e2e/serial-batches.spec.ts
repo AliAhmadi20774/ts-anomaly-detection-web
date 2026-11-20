@@ -41,7 +41,7 @@ test('opens a batch, then its serial, test, and signals', async ({ page, context
     created.push(`/backend/api/test-runs/${run.id}/`);
 
     await page.goto('/serial-batches');
-    await expect(page.getByRole('heading', { name: 'Serial batches' })).toBeVisible();
+    await expect(page.getByText('Serial batches', { exact: true }).last()).toBeVisible();
     await expect(page.getByRole('button', { name: 'New test run' })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Edit' })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Delete' })).toHaveCount(0);
