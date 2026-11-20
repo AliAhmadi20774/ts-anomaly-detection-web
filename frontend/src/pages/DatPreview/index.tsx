@@ -6,7 +6,8 @@ import {
 } from 'antd';
 import type { TableColumnsType, UploadFile } from 'antd';
 import { useEffect, useRef, useState } from 'react';
-import { type DatDevice, type DatFilePreview, type DatFormat, type DatPreview, type DatTest, previewDatFiles } from '@/services/datPreview';
+import { deviceOptions, type SelectOption } from '@/services/definitions';
+import { type DatDevice, type DatFilePreview, type DatImportResult, type DatPreview, type DatTest, importDatFiles, previewDatFiles } from '@/services/datPreview';
 
 function TestDetails({ test }: { test: DatTest }) {
   const table = test.flat_result_table;
@@ -47,29 +48,112 @@ function DeviceDetails({ device }: { device: DatDevice }) {
 
 export default function DatPreviewPage() {
   const [files, setFiles] = useState<UploadFile[]>([]);
-  const [fileFormat, setFileFormat] = useState<DatFormat>('auto');
+  const [deviceType, setDeviceType] = useState<string>();
+  const [deviceChoices, setDeviceChoices] = useState<SelectOption[]>([]);
+  const [loadingDevices, setLoadingDevices] = useState(false);
   const [preview, setPreview] = useState<DatPreview>();
+  const [importResult, setImportResult] = useState<DatImportResult>();
   const [error, setError] = useState<string>();
-  const [busy, setBusy] = useState(false);
+  const [operation, setOperation] = useState<'preview' | 'import' | null>(null);
+  const busy = operation !== null;
+  const importing = operation === 'import';
   const requestRef = useRef<AbortController | undefined>(undefined);
   useEffect(() => () => requestRef.current?.abort(), []);
+  useEffect(() => {
+    let active = true;
+    setLoadingDevices(true);
+    deviceOptions().then((choices) => { if (active) setDeviceChoices(choices); })
+      .catch((failure) => { if (active) setError(failure instanceof Error ? failure.message : 'Unable to load device types.'); })
+      .finally(() => { if (active) setLoadingDevices(false); });
+    return () => { active = false; };
+  }, []);
+
+  const searchDevices = async (search: string) => {
+    setLoadingDevices(true);
+    try {
+      const selected = deviceChoices.find((choice) => choice.value === deviceType);
+      setDeviceChoices(await deviceOptions(search, selected));
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : 'Unable to load device types.');
+    } finally {
+      setLoadingDevices(false);
+    }
+  };
+
+  const replaceFiles = (selected: UploadFile[]) => {
+    if (!deviceType || busy || !selected.length) return;
+    setFiles(selected);
+    setPreview(undefined);
+    setImportResult(undefined);
+    setError(undefined);
+  };
+
+  const removeFile = (uid: string) => {
+    setFiles((previous) => previous.filter((file) => file.uid !== uid));
+    setPreview(undefined);
+    setImportResult(undefined);
+    setError(undefined);
+  };
+
+  const clearSelection = () => {
+    setFiles([]);
+    setPreview(undefined);
+    setImportResult(undefined);
+    setError(undefined);
+  };
+
+  const fileError = files.length > 100 ? 'Select no more than 100 files.'
+    : files.some((file) => !file.name.toLowerCase().endsWith('.dat')) ? 'Select DAT files only.'
+    : files.some((file) => (file.size ?? 0) > 32 * 1024 * 1024) ? 'Each file must be 32 MiB or smaller.'
+    : files.reduce((total, file) => total + (file.size ?? 0), 0) > 128 * 1024 * 1024 ? 'The selection must be 128 MiB or smaller.'
+    : undefined;
 
   const handlePreview = async () => {
     const controller = new AbortController();
     requestRef.current = controller;
-    setBusy(true);
+    setOperation('preview');
     setError(undefined);
     setPreview(undefined);
+    setImportResult(undefined);
     try {
       const selected = files.flatMap((file) => file.originFileObj ? [file.originFileObj] : []);
-      const result = await previewDatFiles(selected, fileFormat, controller.signal);
+      const result = await previewDatFiles(selected, deviceType!, controller.signal);
       if (!controller.signal.aborted) setPreview(result);
     } catch (failure) {
       if (!controller.signal.aborted) setError(failure instanceof Error ? failure.message : 'Preview failed.');
     } finally {
       if (requestRef.current === controller) {
         requestRef.current = undefined;
-        setBusy(false);
+        setOperation(null);
+      }
+    }
+  };
+
+  const readyCurrentFiles = preview?.files.flatMap((item) => {
+    const file = files[item.index]?.originFileObj;
+    return item.status === 'ready' && item.format === 'current' && file ? [file] : [];
+  }) ?? [];
+
+  const handleImport = async () => {
+    const controller = new AbortController();
+    requestRef.current = controller;
+    setOperation('import');
+    setError(undefined);
+    try {
+      const result = await importDatFiles(readyCurrentFiles, deviceType!, controller.signal);
+      if (!controller.signal.aborted) {
+        setImportResult(result);
+        if (result.summary.imported > 0) {
+          setFiles([]);
+          setPreview(undefined);
+        }
+      }
+    } catch (failure) {
+      if (!controller.signal.aborted) setError(failure instanceof Error ? failure.message : 'Import failed.');
+    } finally {
+      if (requestRef.current === controller) {
+        requestRef.current = undefined;
+        setOperation(null);
       }
     }
   };
@@ -77,45 +161,77 @@ export default function DatPreviewPage() {
   const columns: TableColumnsType<DatFilePreview> = [
     { title: 'File', dataIndex: 'name', ellipsis: true },
     { title: 'Size', dataIndex: 'size', render: (bytes: number) => `${(bytes / 1024).toFixed(1)} KiB` },
-    { title: 'Format', dataIndex: 'format', render: (value?: string) => value || '—' },
+    { title: 'Format', dataIndex: 'format', render: (value?: string) => value === 'legacy' ? 'Old format (preview only)' : value === 'current' ? 'Supported format' : '—' },
     { title: 'Status', dataIndex: 'status', render: (value: DatFilePreview['status']) => (
-      <Tag color={{ ready: 'success', warning: 'warning', duplicate: 'default', error: 'error' }[value]}>{value}</Tag>
+      <Tag color={{ ready: 'success', warning: 'warning', error: 'error' }[value]}>{value}</Tag>
     ) },
-    { title: 'Details', render: (_, record) => record.error || (record.duplicate_of ? `Same content as ${record.duplicate_of}` : `${record.devices?.length || 0} device entries`) },
+    { title: 'Details', render: (_, record) => record.error || `${record.devices?.length || 0} device entries` },
   ];
 
   return (
     <PageContainer title="DAT file preview" subTitle="Select a batch of DAT files and inspect their contents before importing.">
       <Space orientation="vertical" size="large" style={{ width: '100%' }}>
-        <Alert type="info" showIcon title="Preview only · no records are saved yet"
-          description="Operator and date are read from each test in the file. Dates are shown exactly as supplied. Missing metadata is shown as Not provided."
+        <Alert type="info" showIcon title="Select a device type, then preview and import DAT files"
+          description="The DAT format is detected automatically. Older files can be previewed but cannot be imported. Supported files also need complete test metadata."
         />
-        <Card title="Select files">
-          <Upload.Dragger multiple accept=".dat" beforeUpload={() => false} fileList={files} disabled={busy}
-            onChange={({ fileList }) => { setFiles(fileList); setPreview(undefined); setError(undefined); }}
+        <Card title="New DAT batch">
+          <Space orientation="vertical" style={{ width: '100%', marginBottom: 16 }}>
+            <Typography.Text>Select the device type for these DAT files</Typography.Text>
+            <Select aria-label="Device type" placeholder="Select device type" value={deviceType}
+              showSearch filterOption={false} options={deviceChoices} loading={loadingDevices}
+              onSearch={searchDevices} onFocus={() => searchDevices('')} disabled={busy}
+              onChange={(value: string) => { setDeviceType(value); clearSelection(); }}
+              style={{ width: '100%', maxWidth: 400 }}
+            />
+          </Space>
+          <Upload.Dragger multiple accept=".dat" disabled={busy || !deviceType} fileList={files}
+            beforeUpload={(file, selection) => {
+              if (file === selection[0]) replaceFiles(selection.map((item, index) => ({
+                uid: String(index), name: item.name, size: item.size,
+                type: item.type, originFileObj: item,
+              })));
+              return Upload.LIST_IGNORE;
+            }}
+            onRemove={(file) => { removeFile(file.uid); return true; }}
           >
             <p className="ant-upload-drag-icon"><InboxOutlined /></p>
-            <p>Choose DAT files or drop them here</p>
-            <p>Up to 100 files, 32 MiB per file and 128 MiB per selection.</p>
+            <p>{deviceType ? 'Choose DAT files or drop them here' : 'Select a device type first'}</p>
+            <p>Each new choice replaces the previous selection. Select multiple files together for one batch.</p>
           </Upload.Dragger>
-          {files.length > 100 && <Alert type="warning" title="Select no more than 100 files." style={{ marginTop: 16 }} />}
+          {files.length > 0 && <Button disabled={busy} onClick={clearSelection} style={{ marginTop: 16 }}>Clear selection</Button>}
+          {fileError && <Alert type="warning" title={fileError} style={{ marginTop: 16 }} />}
           <Space wrap style={{ marginTop: 16 }}>
-            <Select<DatFormat> aria-label="DAT format" value={fileFormat} disabled={busy}
-              onChange={(value) => { setFileFormat(value); setPreview(undefined); }} style={{ minWidth: 160 }}
-              options={[{ value: 'auto', label: 'Detect format' }, { value: 'current', label: 'Current format' }, { value: 'legacy', label: 'Legacy format' }]}
-            />
-            <Button type="primary" loading={busy} disabled={!files.length || files.length > 100} onClick={handlePreview}>Preview files</Button>
-            {busy && <Button onClick={() => requestRef.current?.abort()}>Cancel</Button>}
-            <Typography.Text>{files.length} files selected</Typography.Text>
+            <Button type="primary" loading={busy && !importing} disabled={!deviceType || !files.length || Boolean(fileError) || busy} onClick={handlePreview}>Preview files</Button>
+            <Button loading={importing} disabled={busy || !deviceType || !readyCurrentFiles.length} onClick={handleImport}>
+              Import {readyCurrentFiles.length} ready file{readyCurrentFiles.length === 1 ? '' : 's'}
+            </Button>
+            {busy && !importing && <Button onClick={() => requestRef.current?.abort()}>Cancel preview</Button>}
+            <Typography.Text>{files.length} file{files.length === 1 ? '' : 's'} selected</Typography.Text>
           </Space>
         </Card>
         {error && <Alert type="error" showIcon title={error} />}
+        {importResult && <Alert type={importResult.summary.errors || importResult.summary.skipped ? 'warning' : 'success'} showIcon
+          title={`Imported ${importResult.summary.imported} files and ${importResult.summary.test_runs} test runs`}
+          description={<List size="small" dataSource={importResult.files}
+            renderItem={(item) => <List.Item>{item.name}: {item.status}
+              {item.errors?.length ? ` — ${item.errors.join('; ')}` : ''}</List.Item>}
+          />}
+        />}
+        {importResult?.batch && <Card title="Imported serial batch"
+          extra={`Received ${new Date(importResult.batch.created_at).toLocaleString()}`}>
+          <Collapse items={importResult.batch.devices.map((device) => ({
+            key: device.id,
+            label: `${device.device_type} / ${device.serial_number} · ${device.tests.length} tests`,
+            children: <List size="small" dataSource={device.tests}
+              renderItem={(test) => <List.Item>{test.name} · {new Date(test.executed_at).toLocaleString()}</List.Item>}
+            />,
+          }))} />
+        </Card>}
         {preview && <>
           <Card title="Selection summary" extra={`Previewed by personnel code ${preview.previewed_by_code}`}>
             <Space wrap size="large">
               <Statistic title="Readable files" value={preview.summary.readable} />
               <Statistic title="Errors" value={preview.summary.errors} />
-              <Statistic title="Duplicates in selection" value={preview.summary.duplicates} />
               <Statistic title="Devices" value={preview.summary.devices} />
               <Statistic title="Tests" value={preview.summary.tests} />
               <Statistic title="Signals" value={preview.summary.signals} />

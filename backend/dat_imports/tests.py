@@ -61,12 +61,13 @@ class DatReaderTests(SimpleTestCase):
         self.assertEqual(data["format"], "current")
         self.assertIsNone(data["devices"][0]["tests"][0]["operator_name"])
 
-    def test_all_devices_and_tests_are_read(self) -> None:
+    def test_only_first_device_and_all_its_tests_are_read(self) -> None:
         root = current_pb2.Array_ProtoDevice.FromString(make_payload())
         root.items[0].testResult.add(testName="Second test").signals.add(name="pressure").data.append(5)
         root.items.add(deviceSeries="Pump", serialNumber="SN-002").testResult.add(testName="Temperature").signals.add(name="temperature").data.append(22)
         _, data = self.reader.read(make_upload(root.SerializeToString()))
-        self.assertEqual(len(data["devices"]), 2)
+        self.assertEqual(len(data["devices"]), 1)
+        self.assertEqual(data["devices"][0]["serial_number"], "SN-001")
         self.assertEqual(len(data["devices"][0]["tests"]), 2)
 
     def test_invalid_numeric_values_are_reported_and_json_safe(self) -> None:
@@ -117,30 +118,46 @@ class DatPreviewApiTests(APITestCase):
         self.client.force_authenticate(self.user)
         self.url = reverse("dat-preview")
 
+    def post_preview(self, data, **kwargs):
+        return self.client.post(self.url, {"device_type": str(self.device.pk), **data}, **kwargs)
+
     def test_batch_reports_each_file_and_does_not_create_records(self) -> None:
-        response = self.client.post(self.url, {"files": [make_upload(), make_upload(make_payload("legacy"), "old.dat"), SimpleUploadedFile("bad.dat", b"bad")]}, format="multipart")
+        response = self.post_preview({"files": [make_upload(), make_upload(make_payload("legacy"), "old.dat"), SimpleUploadedFile("bad.dat", b"bad")]}, format="multipart")
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.data["summary"], {"files": 3, "readable": 2, "errors": 1, "duplicates": 0, "devices": 1, "tests": 2, "signals": 4})
+        self.assertEqual(response.data["summary"], {"files": 3, "readable": 2, "errors": 1, "devices": 1, "tests": 2, "signals": 4})
         self.assertEqual([item["status"] for item in response.data["files"]], ["ready", "warning", "error"])
         self.assertEqual(response.data["previewed_by_code"], "preview-user")
         self.assertEqual(response.data["files"][0]["devices"][0]["tests"][0]["sample_rate_hz"], 1000)
         self.assertEqual(TestRun.objects.count(), 0)
         self.assertEqual(DeviceType.objects.count(), 1)
 
-    def test_duplicates_are_detected_by_decoded_content(self) -> None:
+    def test_identical_payloads_are_both_previewed(self) -> None:
         payload = make_payload()
         files = [make_upload(payload, "first.dat"), SimpleUploadedFile("second.dat", gzip.compress(payload, mtime=123))]
-        response = self.client.post(self.url, {"files": files}, format="multipart")
+        response = self.post_preview({"files": files}, format="multipart")
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.data["summary"]["duplicates"], 1)
-        self.assertEqual(response.data["files"][1]["duplicate_of"], "first.dat")
+        self.assertEqual(response.data["summary"]["readable"], 2)
+        self.assertEqual([item["status"] for item in response.data["files"]], ["ready", "ready"])
+        self.assertEqual(response.data["files"][0]["devices"], response.data["files"][1]["devices"])
+
+    def test_selected_device_type_is_required_and_mismatch_is_error(self) -> None:
+        missing = self.client.post(self.url, {"files": [make_upload()]}, format="multipart")
+        self.assertEqual(missing.status_code, 400)
+        self.assertIn("device_type", missing.data)
+        root = current_pb2.Array_ProtoDevice.FromString(make_payload())
+        root.items[0].deviceSeries = "Pump"
+        response = self.post_preview({"files": [make_upload(root.SerializeToString())]}, format="multipart")
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data["files"][0]["status"], "error")
+        self.assertIn("does not match", response.data["files"][0]["error"])
+        self.assertEqual(response.data["summary"]["readable"], 0)
 
     def test_unknown_definitions_and_malformed_table_are_visible(self) -> None:
         root = current_pb2.Array_ProtoDevice.FromString(make_payload())
         test = root.items[0].testResult[0]
         test.testName = "Unconfigured"
         test.flatResultDataTable.ColumnCount = 3
-        response = self.client.post(self.url, {"files": [make_upload(root.SerializeToString())]}, format="multipart")
+        response = self.post_preview({"files": [make_upload(root.SerializeToString())]}, format="multipart")
         self.assertEqual(response.status_code, 200)
         result = response.data["files"][0]
         self.assertEqual(result["status"], "warning")
@@ -148,21 +165,21 @@ class DatPreviewApiTests(APITestCase):
         self.assertTrue(any("inconsistent" in warning for warning in result["warnings"]))
 
     def test_empty_files_are_reported_individually(self) -> None:
-        response = self.client.post(self.url, {"files": [SimpleUploadedFile("empty.dat", b""), make_upload()]}, format="multipart")
+        response = self.post_preview({"files": [SimpleUploadedFile("empty.dat", b""), make_upload()]}, format="multipart")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["files"][0]["status"], "error")
         self.assertEqual(response.data["summary"]["readable"], 1)
 
     def test_anonymous_and_insufficiently_authorized_requests_are_rejected(self) -> None:
         self.client.force_authenticate(None)
-        self.assertEqual(self.client.post(self.url, {"files": [make_upload()]}, format="multipart").status_code, 403)
+        self.assertEqual(self.post_preview({"files": [make_upload()]}, format="multipart").status_code, 403)
         self.client.force_authenticate(self.reader)
-        self.assertEqual(self.client.post(self.url, {"files": [make_upload()]}, format="multipart").status_code, 403)
+        self.assertEqual(self.post_preview({"files": [make_upload()]}, format="multipart").status_code, 403)
         permissions = Permission.objects.filter(codename__in=["add_testrun", "view_devicetype", "view_testdefinition", "view_signaldefinition"])
         self.reader.user_permissions.add(*permissions)
         self.client.force_authenticate(get_user_model().objects.get(pk=self.reader.pk))
-        self.assertEqual(self.client.post(self.url, {"files": [make_upload()]}, format="multipart").status_code, 200)
+        self.assertEqual(self.post_preview({"files": [make_upload()]}, format="multipart").status_code, 200)
 
     def test_missing_files_and_invalid_format_are_rejected(self) -> None:
-        self.assertEqual(self.client.post(self.url, {}, format="multipart").status_code, 400)
-        self.assertEqual(self.client.post(self.url, {"files": [make_upload()], "file_format": "unknown"}, format="multipart").status_code, 400)
+        self.assertEqual(self.post_preview({}, format="multipart").status_code, 400)
+        self.assertEqual(self.post_preview({"files": [make_upload()], "file_format": "unknown"}, format="multipart").status_code, 400)

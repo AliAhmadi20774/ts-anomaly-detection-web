@@ -1,6 +1,4 @@
-from hashlib import sha256
-
-from devices.models import TestDefinition
+from devices.models import DeviceType, TestDefinition
 from dat_imports.reader import DatReadError, DatReader
 
 
@@ -12,21 +10,27 @@ class DatPreviewService:
             key = (definition.device_type.name, definition.name)
             self.definitions.setdefault(key, []).append(definition)
 
-    def preview(self, files: list, file_format: str) -> dict:
+    @staticmethod
+    def device_type_error(data: dict, selected_device_type) -> str | None:
+        series = data["devices"][0]["device_series"]
+        if series != selected_device_type.name:
+            return f"DAT device type '{series}' does not match selected device type '{selected_device_type.name}'."
+        if DeviceType.objects.filter(name=series).exclude(pk=selected_device_type.pk).exists():
+            return f"Device type name '{series}' is registered more than once; the DAT cannot identify which one it belongs to."
+        return None
+
+    def preview(self, files: list, file_format: str, selected_device_type) -> dict:
         results = []
-        seen = {}
         for index, uploaded_file in enumerate(files):
             result = {"index": index, "name": uploaded_file.name, "size": uploaded_file.size}
             try:
-                payload, data = self.reader.read(uploaded_file, file_format)
-                digest = sha256(payload).hexdigest()
-                if digest in seen:
-                    results.append({**result, "status": "duplicate", "duplicate_of": seen[digest]})
-                    continue
-
-                seen[digest] = uploaded_file.name
-                warnings = self.check_definitions(data)
-                results.append({**result, **data, "status": "warning" if warnings else "ready", "warnings": warnings})
+                _, data = self.reader.read(uploaded_file, file_format)
+                mismatch = self.device_type_error(data, selected_device_type)
+                if mismatch:
+                    results.append({**result, **data, "status": "error", "error": mismatch})
+                else:
+                    warnings = self.check_definitions(data, selected_device_type)
+                    results.append({**result, **data, "status": "warning" if warnings else "ready", "warnings": warnings})
             except DatReadError as error:
                 results.append({**result, "status": "error", "error": str(error)})
 
@@ -37,20 +41,20 @@ class DatPreviewService:
         summary = {
             "files": len(results), "readable": len(valid),
             "errors": sum(result["status"] == "error" for result in results),
-            "duplicates": sum(result["status"] == "duplicate" for result in results),
             "devices": len({(device["device_series"], device["serial_number"]) for device in devices}),
             "tests": len(tests), "signals": len(signals),
         }
         return {"summary": summary, "files": results}
 
-    def check_definitions(self, data: dict) -> list[str]:
+    def check_definitions(self, data: dict, selected_device_type) -> list[str]:
         warnings = []
         for device in data["devices"]:
             if not device["tests"]:
                 warnings.append(f"{device['serial_number']}: no tests are present.")
             for test in device["tests"]:
                 label = f"{device['serial_number']} / {test['name']}"
-                definitions = self.definitions.get((device["device_series"], test["name"]), [])
+                definitions = [definition for definition in self.definitions.get((device["device_series"], test["name"]), [])
+                               if definition.device_type_id == selected_device_type.pk]
                 definition = definitions[0] if len(definitions) == 1 else None
                 test["test_definition_id"] = str(definition.pk) if definition else None
                 test["sample_rate_hz"] = definition.sample_rate_hz if definition else None

@@ -12,7 +12,7 @@ describe('Django permissions', () => {
     expect(access({ currentUser: user })).toEqual({
       canAdmin: false, canViewDeviceTypes: false,
       canViewTestDefinitions: true, canViewSignalDefinitions: false,
-      canViewTestRuns: false,
+      canViewSerialBatches: false,
       canPreviewDat: false,
     });
   });
@@ -27,11 +27,11 @@ describe('Django permissions', () => {
     expect(Object.values(access(undefined)).some(Boolean)).toBe(false);
   });
 
-  it('grants run access independently of definition access', () => {
+  it('grants batch access independently of definition access', () => {
     const permissions = access({ currentUser: {
-      ...user, permissions: ['devices.view_testrun'],
+      ...user, permissions: ['devices.view_measurementbatch'],
     } });
-    expect(permissions.canViewTestRuns).toBe(true);
+    expect(permissions.canViewSerialBatches).toBe(true);
     expect(permissions.canViewTestDefinitions).toBe(false);
   });
 });

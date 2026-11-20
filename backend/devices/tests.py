@@ -19,15 +19,34 @@ class DefinitionTests(TestCase):
         second_test = TestDefinition.objects.create(
             name="test1", device_type=second_device, sample_rate_hz=12.5
         )
+        another_test = TestDefinition.objects.create(
+            name="test2", device_type=self.device, sample_rate_hz=1000
+        )
         first_signal = SignalDefinition.objects.create(name="signal1", test=self.test)
         second_signal = SignalDefinition.objects.create(name="signal1", test=second_test)
+        third_signal = SignalDefinition.objects.create(name="signal1", test=another_test)
 
         self.assertEqual(first_signal.test.device_type, self.device)
         self.assertEqual(second_signal.test.device_type, second_device)
         self.assertNotEqual(first_signal.id, second_signal.id)
-        self.assertEqual(self.device.tests.get(), self.test)
+        self.assertEqual(self.device.tests.get(name="test1"), self.test)
         self.assertEqual(second_test.signals.get(), second_signal)
+        self.assertEqual(another_test.signals.get(), third_signal)
         self.assertEqual(second_test.sample_rate_hz, 12.5)
+
+    def test_database_rejects_duplicate_names_under_same_parent(self) -> None:
+        SignalDefinition.objects.create(name="signal1", test=self.test)
+        duplicates = [
+            TestDefinition(name="test1", device_type=self.device, sample_rate_hz=500),
+            SignalDefinition(name="signal1", test=self.test),
+        ]
+        for definition in duplicates:
+            with self.subTest(model=type(definition).__name__):
+                with self.assertRaises(ValidationError):
+                    definition.full_clean()
+                with self.assertRaises(IntegrityError):
+                    with transaction.atomic():
+                        definition.save()
 
     def test_database_rejects_wrong_parent_identifiers(self) -> None:
         invalid_objects = [

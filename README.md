@@ -13,6 +13,6 @@ A web platform for analyzing device test signals and detecting anomalies, with s
 
 ## Current Status
 
-The initial OOP backend, health endpoint, API documentation, and Docker setup are working. The next step is integrating the frontend and connecting it to the API.
+The Django and DRF backend, React frontend, PostgreSQL setup, health endpoint, and API are working together. Current-format DAT files can be previewed and imported. Each import request creates one measurement batch with device serials, tests, and signal traces. The batch has one receipt timestamp; each test retains its own execution timestamp. Imported test runs store their complete signal samples and flat results; the serial-batches page shows batches, serials, tests, and signal charts. The same DAT may be imported again as a separate batch.
 
 Development proceeds in small, explained steps, keeping the code simple, readable, and maintainable.

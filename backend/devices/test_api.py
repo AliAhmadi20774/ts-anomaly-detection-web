@@ -112,6 +112,38 @@ class DefinitionApiTests(APITestCase):
         self.test.refresh_from_db()
         self.assertEqual(self.test.sample_rate_hz, 1000)
 
+    def test_duplicate_definition_names_are_rejected_with_validation_errors(self) -> None:
+        second_test = TestDefinition.objects.create(
+            name="test2", device_type=self.device, sample_rate_hz=1000
+        )
+        second_signal = SignalDefinition.objects.create(name="signal2", test=second_test)
+        cases = [
+            ("test-definition-list", {"name": "test1", "device_type": str(self.device.id), "sample_rate_hz": 500}),
+            ("signal-definition-list", {"name": "signal1", "test": str(self.test.id)}),
+        ]
+        for route, payload in cases:
+            with self.subTest(route=route):
+                response = self.client.post(reverse(route), payload, format="json")
+                self.assertEqual(response.status_code, 400)
+                self.assertIn("non_field_errors", response.data)
+
+        response = self.client.patch(
+            reverse("test-definition-detail", args=[second_test.id]),
+            {"name": "test1"}, format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+
+        response = self.client.patch(
+            reverse("signal-definition-detail", args=[second_signal.id]),
+            {"name": "signal1", "test": str(self.test.id)}, format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+
+        response = self.client.post(reverse("signal-definition-list"), {
+            "name": "signal1", "test": str(second_test.id),
+        }, format="json")
+        self.assertEqual(response.status_code, 201)
+
     def test_blank_names_and_missing_fields_are_rejected(self) -> None:
         cases = [
             ("device-type-list", {"name": " "}),

@@ -11,6 +11,7 @@ RUN python -m pip install --no-cache-dir -r requirements.txt
 RUN useradd --create-home --uid 10001 appuser
 
 COPY manage.py .
+COPY sample_data/ ./sample_data/
 COPY config/ ./config/
 COPY health/ ./health/
 COPY devices/ ./devices/

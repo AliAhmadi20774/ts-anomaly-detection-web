@@ -14,9 +14,18 @@ export default [
     component: './SignalDefinitions', access: 'canViewSignalDefinitions',
   },
   {
-    path: '/test-runs', name: 'test-runs', icon: 'playCircle',
-    component: './TestRuns', access: 'canViewTestRuns',
+    path: '/serial-batches', name: 'serial-batches', icon: 'database',
+    component: './SerialBatches', access: 'canViewSerialBatches',
   },
+  {
+    path: '/serial-batches/:batchId/serials/:deviceId', name: 'serial-detail',
+    component: './SerialDetail', access: 'canViewSerialBatches', hideInMenu: true,
+  },
+  {
+    path: '/serial-batches/:batchId', name: 'serial-batch-detail',
+    component: './SerialBatchDetail', access: 'canViewSerialBatches', hideInMenu: true,
+  },
+  { path: '/test-runs', redirect: '/serial-batches' },
   {
     path: '/dat-preview', name: 'dat-preview', icon: 'upload',
     component: './DatPreview', access: 'canPreviewDat',

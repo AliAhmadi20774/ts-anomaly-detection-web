@@ -3,6 +3,7 @@ from uuid import uuid4
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission
 from django.db.models.deletion import ProtectedError
+from django.test import Client
 from django.urls import reverse
 from rest_framework.test import APITestCase
 
@@ -25,7 +26,6 @@ class TestRunApiTests(APITestCase):
             "test": str(self.definition.pk),
             "device_serial_number": "SN-001",
             "executed_at": "2026-11-19T08:30:00Z",
-            "notes": "Baseline measurement",
         }
 
     def create_run(self) -> TestRun:
@@ -41,7 +41,8 @@ class TestRunApiTests(APITestCase):
         self.assertEqual(run.recorded_by, self.user)
         self.assertEqual(run.device_type, self.device)
         self.assertEqual(run.sample_rate_hz, 1000)
-        self.assertEqual(run.notes, "Baseline measurement")
+        self.assertEqual(run.created_at, run.device_run.batch.created_at)
+        self.assertEqual(run.device_run.serial_number, "SN-001")
 
     def test_snapshot_survives_changes_to_test_definition(self) -> None:
         run = self.create_run()
@@ -54,10 +55,6 @@ class TestRunApiTests(APITestCase):
         run.refresh_from_db()
         self.assertEqual(run.sample_rate_hz, 1000)
         self.assertEqual(run.device_type, self.device)
-
-        run.notes = "Updated note"
-        run.save()
-        run.refresh_from_db()
 
         self.assertEqual(run.sample_rate_hz, 1000)
 
@@ -81,7 +78,6 @@ class TestRunApiTests(APITestCase):
         response = self.client.patch(
             detail,
             {
-                "notes": "Corrected",
                 "device_serial_number": "SN-002",
                 "recorded_by": self.reader.pk,
                 "sample_rate_hz": 10,
@@ -91,8 +87,8 @@ class TestRunApiTests(APITestCase):
         self.assertEqual(response.status_code, 200)
 
         run.refresh_from_db()
-        self.assertEqual(run.notes, "Corrected")
         self.assertEqual(run.device_serial_number, "SN-002")
+        self.assertEqual(run.device_run.serial_number, "SN-002")
         self.assertEqual(run.sample_rate_hz, 1000)
         self.assertEqual(run.recorded_by, self.user)
 
@@ -142,3 +138,8 @@ class TestRunApiTests(APITestCase):
     def test_anonymous_requests_are_rejected(self) -> None:
         self.client.force_authenticate(None)
         self.assertEqual(self.client.get(self.url).status_code, 403)
+
+    def test_admin_add_form_handles_a_new_device_run(self) -> None:
+        admin_client = Client()
+        admin_client.force_login(self.user)
+        self.assertEqual(admin_client.get(reverse("admin:devices_testrun_add")).status_code, 200)

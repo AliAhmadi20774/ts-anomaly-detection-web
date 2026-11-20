@@ -16,7 +16,7 @@ class DatReader:
     max_decoded_bytes = 64 * 1024 * 1024
     schemas = {"current": current_pb2.Array_ProtoDevice, "legacy": legacy_pb2.Array_ProtoDevice}
 
-    def read(self, uploaded_file, file_format: str = "auto", *, include_full_table: bool = False) -> tuple[bytes, dict]:
+    def read(self, uploaded_file, file_format: str = "auto", *, include_full_table: bool = False, include_samples: bool = False) -> tuple[bytes, dict]:
         if not uploaded_file.name.lower().endswith(".dat"):
             raise DatReadError("Select a .dat file.")
         if uploaded_file.size > self.max_file_bytes:
@@ -34,12 +34,12 @@ class DatReader:
             raise DatReadError("The file contains no data.")
 
         if file_format != "auto":
-            return payload, self.parse(payload, file_format, include_full_table=include_full_table)
+            return payload, self.parse(payload, file_format, include_full_table=include_full_table, include_samples=include_samples)
 
         candidates = []
         for version in self.schemas:
             try:
-                candidates.append(self.parse(payload, version, include_full_table=include_full_table))
+                candidates.append(self.parse(payload, version, include_full_table=include_full_table, include_samples=include_samples))
             except DatReadError:
                 continue
 
@@ -49,7 +49,7 @@ class DatReader:
             raise DatReadError("The format is ambiguous. Select Current or Legacy explicitly.")
         raise DatReadError("The file does not match either supported DAT format.")
 
-    def parse(self, payload: bytes, version: str, *, include_full_table: bool = False) -> dict:
+    def parse(self, payload: bytes, version: str, *, include_full_table: bool = False, include_samples: bool = False) -> dict:
         root = self.schemas[version]()
         try:
             root.ParseFromString(payload)
@@ -61,7 +61,8 @@ class DatReader:
 
         devices = []
         has_test_content = False
-        for device in root.items:
+        # This project uses only the first device entry from each DAT file.
+        for device in root.items[:1]:
             series = self.read_name(device.deviceSeries, "Device series")
             serial = self.read_name(device.serialNumber, "Device serial number")
             tests = []
@@ -70,7 +71,7 @@ class DatReader:
                 operator = self.read_name(test.operatorName, "Operator name", required=False) if version == "current" else None
                 date = self.read_name(test.date, "Test date", required=False) if version == "current" else None
                 table = self.preview_table(test.flatResultDataTable) if version == "current" and test.HasField("flatResultDataTable") else None
-                signals = [self.preview_signal(signal) for signal in test.signals]
+                signals = [self.preview_signal(signal, include_samples=include_samples) for signal in test.signals]
                 has_test_content = has_test_content or bool(signals or operator or date or table)
                 tests.append({"name": name, "operator_name": operator, "date_raw": date, "signals": signals, "flat_result_table": table})
                 if include_full_table:
@@ -90,11 +91,14 @@ class DatReader:
             raise DatReadError(f"{label} contains invalid control characters.")
         return value
 
-    def preview_signal(self, signal) -> dict:
+    def preview_signal(self, signal, *, include_samples: bool = False) -> dict:
         name = self.read_name(signal.name, "Signal name")
         invalid_count = sum(not math.isfinite(value) for value in signal.data)
         sample = [value if math.isfinite(value) else None for value in signal.data[:5]]
-        return {"name": name, "sample_count": len(signal.data), "non_finite_count": invalid_count, "sample": sample}
+        result = {"name": name, "sample_count": len(signal.data), "non_finite_count": invalid_count, "sample": sample}
+        if include_samples:
+            result["samples"] = list(signal.data)
+        return result
 
     def preview_table(self, table) -> dict:
         columns = list(table.ColumnNames)

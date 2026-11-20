@@ -23,10 +23,10 @@ class FlatResultStorageTests(APITestCase):
         self.assertEqual(response.status_code, 201, response.data)
         return TestRun.objects.get(pk=response.data["id"])
 
-    def test_strings_are_preserved_and_notes_edits_do_not_replace_the_table(self) -> None:
+    def test_strings_are_preserved_and_metadata_edits_do_not_replace_the_table(self) -> None:
         run = self.create_run(self.table)
         detail = reverse("test-run-detail", args=[run.pk])
-        self.assertEqual(self.client.patch(detail, {"notes": "Updated note"}, format="json").status_code, 200)
+        self.assertEqual(self.client.patch(detail, {"executed_at": "2026-11-20T08:30:00Z"}, format="json").status_code, 200)
         run.refresh_from_db()
         self.assertEqual(run.flat_result_data, self.table)
         self.assertNotIn("flat_result_data", self.client.get(self.url).data["results"][0])
