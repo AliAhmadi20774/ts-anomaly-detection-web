@@ -4,7 +4,7 @@ A web platform for analyzing device test signals and detecting anomalies, with s
 
 ## Goals
 
-- Separate the frontend from an object-oriented Python/FastAPI backend.
+- Separate the frontend from an object-oriented Python backend built with Django and Django REST Framework (DRF).
 - Build a React/TypeScript interface using an open-source admin template; Ant Design Pro is the proposed starting point.
 - Support interchangeable detection models, starting with an LSTM autoencoder.
 - Extend analysis to multiple sensors and derived features.
