@@ -1,13 +1,15 @@
 import { DownloadOutlined } from '@ant-design/icons';
 import { Alert, Button, Empty, Grid, Spin, Table, Typography } from 'antd';
 import { useEffect, useState } from 'react';
-import { type TestRunDetail, testRuns } from '@/services/testRuns';
+import type { TestRunDetail } from '@/services/testRuns';
 import { resultExcel } from '@/utils/resultExcel';
+import { downloadFile } from '@/utils/testReport';
 
-export default function TestResults({ runId, testName, canView }: {
+export default function TestResults({ runId, testName, canView, getDetail }: {
   runId: string;
   testName: string;
   canView: boolean;
+  getDetail: (id: string) => Promise<TestRunDetail>;
 }) {
   const screens = Grid.useBreakpoint();
   const [detail, setDetail] = useState<TestRunDetail>();
@@ -25,7 +27,7 @@ export default function TestResults({ runId, testName, canView }: {
       setLoading(false);
       return () => controller.abort();
     }
-    testRuns.detail(runId, controller.signal).then((result) => {
+    getDetail(runId).then((result) => {
       if (!controller.signal.aborted) setDetail(result);
     }).catch((failure) => {
       if (!controller.signal.aborted) setError(failure instanceof Error ? failure.message : 'Could not load test results.');
@@ -33,7 +35,7 @@ export default function TestResults({ runId, testName, canView }: {
       if (!controller.signal.aborted) setLoading(false);
     });
     return () => controller.abort();
-  }, [runId, canView]);
+  }, [runId, canView, getDetail]);
 
   const table = detail?.flat_result_data;
   const validShape = table && Number.isInteger(table.column_count) && table.column_count >= 0
@@ -50,14 +52,7 @@ export default function TestResults({ runId, testName, canView }: {
     setExportError(undefined);
     try {
       const blob = await resultExcel(table);
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `${testName.replace(/[<>:"/\\|?*\u0000-\u001f]/g, '_')}_${runId.slice(0, 8)}.xlsx`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      downloadFile(blob, `${testName}_${runId.slice(0, 8)}.xlsx`);
     } catch (failure) {
       setExportError(failure instanceof Error ? failure.message : 'Could not export test results.');
     } finally {
@@ -70,7 +65,7 @@ export default function TestResults({ runId, testName, canView }: {
       <div className="batch-detail-panel-header">
         <div><span className="batch-detail-eyebrow">SELECTED TEST</span><h2>Results for {testName}</h2></div>
         <Button type="primary" icon={<DownloadOutlined aria-hidden="true" />} onClick={exportExcel} loading={exporting}
-          disabled={!canView || loading || !validShape || rows.length === 0}>Export Excel</Button>
+          title="Export only this parameter table" disabled={!canView || loading || !validShape || rows.length === 0}>Table Excel</Button>
       </div>
       <div className="batch-detail-results-body">
         {!canView ? <Typography.Text type="secondary">Test result access is unavailable for your account.</Typography.Text> : <>

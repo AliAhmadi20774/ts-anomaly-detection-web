@@ -7,6 +7,9 @@ import { hasPermission } from '@/services/auth';
 import { type MeasurementBatch, measurementBatches } from '@/services/measurementBatches';
 import { formatTehranDateTime } from '@/utils/dateTime';
 import TestResults from './TestResults';
+import SerialActions from './SerialActions';
+import useTestData from './useTestData';
+import type { ReportTest, TestReport } from '@/utils/testReport';
 import '../SerialBatchDetail/index.css';
 
 export default function SerialDetailPage() {
@@ -17,6 +20,7 @@ export default function SerialDetailPage() {
   const [batchLoading, setBatchLoading] = useState(true);
   const [batchError, setBatchError] = useState<string>();
   const [selectedTestId, setSelectedTestId] = useState<string>();
+  const { getDetail, getSignals } = useTestData(deviceId, canViewResults);
 
   useEffect(() => {
     let active = true;
@@ -49,16 +53,36 @@ export default function SerialDetailPage() {
   const device = batch?.devices.find((item) => item.id === deviceId);
   const selectedTest = device?.tests.find((test) => test.id === selectedTestId);
 
+  const loadReport = async (all: boolean): Promise<TestReport> => {
+    if (!batch || !device || !selectedTest) throw new Error('Select a test first.');
+    const tests: ReportTest[] = [];
+    for (const run of all ? device.tests : [selectedTest]) {
+      const [detail, signals] = await Promise.all([getDetail(run.id), getSignals(run.id)]);
+      tests.push({ run, detail, signals });
+    }
+    return { serialNumber: device.serial_number, deviceType: device.device_type_name,
+      deviceTypeId: device.device_type, deviceRunId: device.id,
+      batchId: batch.id, receivedAt: batch.created_at, recordedBy: batch.recorded_by_code, tests };
+  };
+
   return (
-    <PageContainer className="serial-detail-page" title="Serial details" breadcrumbRender={false}
-      extra={batchId && <Link to={`/serial-batches/${batchId}`}>Back to batch</Link>}>
+    <PageContainer className="serial-detail-page" title={false} breadcrumbRender={false}>
       <div className="batch-detail-content batch-detail-serial-page">
-        <Breadcrumb className="batch-detail-breadcrumb" items={[
-          { title: <Link to="/serial-batches">Serial batches</Link> },
-          { title: batchId ? <Link to={`/serial-batches/${batchId}`}>Batch details</Link> : 'Batch details' },
-          ...(device ? [{ title: device.serial_number }] : []),
-          ...(selectedTest ? [{ title: selectedTest.test_name }] : []),
-        ]} />
+        <header className="serial-detail-toolbar">
+          <div className="serial-detail-heading"><h1>Serial details</h1>
+            <Breadcrumb className="batch-detail-breadcrumb" items={[
+              { title: <Link to="/serial-batches">Serial batches</Link> },
+              { title: batchId ? <Link to={`/serial-batches/${batchId}`}>Batch details</Link> : 'Batch details' },
+              ...(device ? [{ title: device.serial_number }] : []),
+              ...(selectedTest ? [{ title: selectedTest.test_name }] : []),
+            ]} />
+          </div>
+          <div className="serial-detail-tools">
+            {selectedTest && <SerialActions key={selectedTest.id} testName={selectedTest.test_name}
+              disabled={!canViewResults} loadReport={loadReport} />}
+            {batchId && <Link className="serial-back-link" to={`/serial-batches/${batchId}`}>Back to batch</Link>}
+          </div>
+        </header>
         {batchLoading && <div className="batch-detail-loading"><Spin size="large" /></div>}
         {batchError && <Alert type="error" showIcon title={batchError} />}
         {batch && device && <>
@@ -101,7 +125,7 @@ export default function SerialDetailPage() {
             </section>
 
             {selectedTest && <TestResults key={selectedTest.id} runId={selectedTest.id}
-              testName={selectedTest.test_name} canView={canViewResults} />}
+              testName={selectedTest.test_name} canView={canViewResults} getDetail={getDetail} />}
           </div>
         </>}
       </div>
