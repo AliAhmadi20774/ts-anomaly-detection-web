@@ -13,6 +13,10 @@ from dat_imports.proto import current_pb2
 
 
 DEFAULT_OUTPUT = Path(__file__).resolve().parent / "files" / "multi_signal_current.dat"
+RESULT_COLUMNS = (
+    "Signal", "Window", "Start sample", "End sample", "Samples", "Mean",
+    "RMS", "Min", "Max", "PeakAbs", "StdDev", "PeakToPeak",
+)
 SENSOR_PROFILES = (
     (
         ("temperature_c", "step", 20.0, 5.0),
@@ -69,6 +73,30 @@ def make_sensor_signals(test_index: int, waveforms: dict[str, list[float]]) -> d
     }
 
 
+def make_result_rows(signals: dict[str, list[float]]) -> list[list[str]]:
+    """Summarize each complete signal and four consecutive sample windows."""
+    rows = []
+    for name, values in signals.items():
+        count = len(values)
+        window_count = min(4, count)
+        windows = [("All samples", 0, count)] + [
+            (f"Window {index + 1:02d}", index * count // window_count, (index + 1) * count // window_count)
+            for index in range(window_count)
+        ]
+        for label, start, stop in windows:
+            samples = values[start:stop]
+            mean = math.fsum(samples) / len(samples)
+            rms = math.sqrt(math.fsum(value * value for value in samples) / len(samples))
+            deviation = math.sqrt(math.fsum((value - mean) ** 2 for value in samples) / len(samples))
+            low, high = min(samples), max(samples)
+            rows.append([
+                name, label, str(start), str(stop - 1), str(len(samples)),
+                f"{mean:.6f}", f"{rms:.6f}", f"{low:.6f}", f"{high:.6f}",
+                f"{max(abs(low), abs(high)):.6f}", f"{deviation:.6f}", f"{high - low:.6f}",
+            ])
+    return rows
+
+
 def make_payload(
     device_series: str,
     serial_number: str,
@@ -94,13 +122,12 @@ def make_payload(
         signals = make_sensor_signals(index, waveforms)
         test = device.testResult.add(testName=name, operatorName=operator_name, date=date)
         table = test.flatResultDataTable
-        table.ColumnNames.extend(["Signal", "RMS", "PeakAbs"])
-        table.ColumnCount = 3
+        table.ColumnNames.extend(RESULT_COLUMNS)
+        table.ColumnCount = len(RESULT_COLUMNS)
         for signal_name, values in signals.items():
             test.signals.add(name=signal_name).data.extend(values)
-            rms = math.sqrt(sum(value * value for value in values) / sample_count)
-            peak = max(abs(value) for value in values)
-            table.FlattendRows.extend([signal_name, f"{rms:.6f}", f"{peak:.6f}"])
+        for row in make_result_rows(signals):
+            table.FlattendRows.extend(row)
     return root.SerializeToString()
 
 

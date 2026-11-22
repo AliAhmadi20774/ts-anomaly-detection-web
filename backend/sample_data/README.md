@@ -13,7 +13,7 @@
 | `test2` | `flow_l_min` | L/min | 10 + 2 × delayed sine | Delayed sine |
 | `test2` | `speed_rpm` | rpm | 1,500 × delayed step | Delayed step |
 
-The step starts at sample 5,632, the sine period is 128 samples, and the delay is 1,024 samples in the reference file. The delayed waveform component has a zero prefix; any sensor baseline remains present. Names encode the measured quantity and unit because the current DAT format has no separate sensor or unit field. These sensor assignments are illustrative, not real hardware metadata. Each test also has an operator, a date, and a valid flat result table with RMS and absolute peak per signal. The waveforms are examples, not labeled anomaly ground truth.
+The step starts at sample 5,632, the sine period is 128 samples, and the delay is 1,024 samples in the reference file. The delayed waveform component has a zero prefix; any sensor baseline remains present. Names encode the measured quantity and unit because the current DAT format has no separate sensor or unit field. These sensor assignments are illustrative, not real hardware metadata. Each test also has an operator, a date, and a valid flat result table with 12 columns and 20 rows. Each of the four signals has one full-signal summary and four consecutive window summaries. The waveforms are examples, not labeled anomaly ground truth.
 
 The `batch/` directory contains six additional, distinct files. Every file has one device, `test1` and `test2`, and the same eight sensor names by test, so one set of definitions can match the whole batch. Each file uses a different serial number.
 
@@ -32,7 +32,7 @@ The DAT file has this structure:
 - Device: `deviceSeries`, `serialNumber`, repeated `testResult`. The project reads only the first root `items[0]` device entry from each DAT file.
 - Test: `testName`, `operatorName`, `date`, repeated `signals`, `flatResultDataTable`.
 - Signal: `name`, repeated numeric `data` samples.
-- Flat result table: `ColumnNames`, `FlattendRows`, `ColumnCount`. These samples use the columns `Signal`, `RMS`, and `PeakAbs`, with one row per signal.
+- Flat result table: `ColumnNames`, `FlattendRows`, `ColumnCount`. Columns are `Signal`, `Window`, `Start sample`, `End sample`, `Samples`, `Mean`, `RMS`, `Min`, `Max`, `PeakAbs`, `StdDev`, and `PeakToPeak`. Sample indexes are zero-based and end indexes are inclusive. Window rows cover the whole signal without gaps or overlap; `StdDev` is the population standard deviation. Statistics use strings with six decimal places; indexes and sample counts use integer strings.
 
 Sample rate is not stored in the DAT schema. The preview obtains it from a matching test definition in the database. Delays in this dataset are measured in samples, not seconds.
 

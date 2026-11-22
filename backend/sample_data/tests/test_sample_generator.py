@@ -1,10 +1,11 @@
 import gzip
 import io
+import math
 from unittest import TestCase
 
 from dat_imports.proto import current_pb2
 from dat_imports.reader import DatReader
-from sample_data.generate_sample_dat import make_payload, make_sensor_signals, make_signals
+from sample_data.generate_sample_dat import RESULT_COLUMNS, make_payload, make_sensor_signals, make_signals
 
 
 class SampleGeneratorTests(TestCase):
@@ -35,9 +36,18 @@ class SampleGeneratorTests(TestCase):
                 {signal.name: list(signal.data) for signal in test.signals},
                 make_sensor_signals(index, waveforms),
             )
-            self.assertEqual(list(test.flatResultDataTable.ColumnNames), ["Signal", "RMS", "PeakAbs"])
-            self.assertEqual(test.flatResultDataTable.ColumnCount, 3)
-            self.assertEqual(len(test.flatResultDataTable.FlattendRows), 12)
+            table = test.flatResultDataTable
+            self.assertEqual(list(table.ColumnNames), list(RESULT_COLUMNS))
+            self.assertEqual(table.ColumnCount, 12)
+            rows = [list(table.FlattendRows[offset:offset + 12]) for offset in range(0, len(table.FlattendRows), 12)]
+            self.assertEqual(len(rows), 20)
+            for signal_index, signal in enumerate(test.signals):
+                whole, *windows = rows[signal_index * 5:(signal_index + 1) * 5]
+                self.assertEqual(whole[:5], [signal.name, "All samples", "0", "63", "64"])
+                expected_rms = math.sqrt(sum(value * value for value in signal.data) / count)
+                self.assertAlmostEqual(float(whole[6]), expected_rms, places=5)
+                self.assertEqual(sum(int(row[4]) for row in windows), count)
+                self.assertEqual([(int(row[2]), int(row[3])) for row in windows], [(start, start + 15) for start in range(0, count, 16)])
 
         first = {signal.name: list(signal.data) for signal in root.items[0].testResult[0].signals}
         second = {signal.name: list(signal.data) for signal in root.items[0].testResult[1].signals}

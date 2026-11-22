@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 
 test.use({ actionTimeout: 15_000 });
 
-test('opens a batch, then its serial, test, and signals', async ({ page, context }) => {
+test('opens a batch, then its serial, test, and results', async ({ page, context }) => {
   test.skip(!process.env.E2E_PERSONNEL_CODE || !process.env.E2E_PASSWORD, 'Supply test login credentials.');
   const marker = `batch-ui-${Date.now()}`;
   const created: string[] = [];
@@ -60,10 +60,10 @@ test('opens a batch, then its serial, test, and signals', async ({ page, context
     await page.getByRole('link', { name: `${marker} / ${marker} · 1 tests` }).click();
     await expect(page).toHaveURL(new RegExp(`/serial-batches/${run.measurement_batch}/serials/[^/]+$`));
     await expect(page.getByText('Serial details', { exact: true }).first()).toBeVisible();
-    await expect(page.getByText(`Tests for ${marker}`)).toBeVisible();
+    await expect(page.getByRole('region', { name: `Tests for ${marker}`, exact: true })).toBeVisible();
     await page.getByRole('button', { name: marker, exact: true }).click();
-    await expect(page.getByText(`Signals for ${marker}`)).toBeVisible();
-    await expect(page.getByText('No stored signals for this test')).toBeVisible();
+    await expect(page.getByText(`Results for ${marker}`)).toBeVisible();
+    await expect(page.getByText('No result table stored for this test')).toBeVisible();
     await page.getByRole('link', { name: 'Back to batch' }).click();
     await expect(page.getByRole('link', { name: `${marker} / ${marker} · 1 tests` })).toBeVisible();
   } finally {

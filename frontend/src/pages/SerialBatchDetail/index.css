@@ -5,7 +5,12 @@
 }
 
 .batch-detail-serial-page {
-  max-width: 1100px;
+  max-width: none;
+}
+
+.serial-detail-page .ant-pro-page-container-children-container {
+  margin-inline: 0;
+  padding-inline: 16px;
 }
 
 .batch-detail-breadcrumb {
@@ -149,7 +154,7 @@
 }
 
 .batch-detail-test-list {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .batch-detail-serial-item,
@@ -262,16 +267,88 @@
 }
 
 .batch-detail-main {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
+  display: grid;
+  grid-template-columns: 230px minmax(0, 1fr);
+  align-items: stretch;
+  gap: 16px;
   min-width: 0;
 }
 
+.batch-detail-main > * {
+  min-width: 0;
+}
+
+.batch-detail-tests-panel {
+  display: flex;
+  flex-direction: column;
+  align-self: start;
+  position: sticky;
+  top: 80px;
+}
+
+.batch-detail-tests-panel .batch-detail-test-list {
+  grid-auto-rows: 56px;
+  max-height: calc(100vh - 240px);
+  overflow-y: auto;
+  align-content: start;
+  padding: 12px;
+}
+
+.batch-detail-tests-panel .batch-detail-panel-header {
+  padding-inline: 16px;
+  gap: 8px;
+}
+
+.batch-detail-tests-panel .batch-detail-test-icon {
+  flex-basis: 30px;
+  height: 30px;
+  font-size: 15px;
+}
+
+.batch-detail-tests-panel .batch-detail-test-item {
+  gap: 8px;
+  height: 56px;
+  min-height: 56px;
+  padding: 6px 10px;
+}
+
+.batch-detail-results-body {
+  padding: 16px 12px;
+}
+
+.batch-detail-results-table .ant-table-cell {
+  padding: 8px 6px !important;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  vertical-align: top;
+}
+
+.batch-detail-results-loading {
+  padding: 32px 0;
+  text-align: center;
+}
+
+.batch-detail-result-source {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  margin-bottom: 16px;
+  color: #667085;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.batch-detail-result-source strong {
+  color: #344054;
+  font-weight: 500;
+}
+
 .batch-detail-test-item {
-  gap: 14px;
-  min-height: 74px;
-  padding: 12px 16px;
+  gap: 10px;
+  min-height: 82px;
+  padding: 12px;
 }
 
 .batch-detail-test-icon {
@@ -283,24 +360,6 @@
 .batch-detail-test-item .ant-tag {
   flex: 0 0 auto;
   margin-inline-end: 0;
-}
-
-.batch-detail-signal-body {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 16px;
-  padding: 22px;
-}
-
-.batch-detail-signal-select {
-  width: min(100%, 390px);
-}
-
-.batch-detail-chart {
-  width: 100%;
-  min-width: 0;
-  padding-top: 6px;
 }
 
 @media (max-width: 1100px) {
@@ -322,6 +381,14 @@
 }
 
 @media (max-width: 820px) {
+  .batch-detail-tests-panel {
+    position: static;
+  }
+
+  .batch-detail-main {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .batch-detail-serial-grid,
   .batch-detail-test-list {
     grid-template-columns: 1fr;
