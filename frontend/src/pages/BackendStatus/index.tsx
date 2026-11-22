@@ -3,6 +3,7 @@ import { PageContainer } from '@ant-design/pro-components';
 import { useQuery } from '@tanstack/react-query';
 import { Alert, Button, Card, Descriptions, Space, Tag } from 'antd';
 import { getBackendHealth } from './service';
+import { formatTehranDateTime } from '@/utils/dateTime';
 
 export default function BackendStatus() {
   const health = useQuery({
@@ -56,7 +57,7 @@ export default function BackendStatus() {
                 {
                   key: 'checked',
                   label: 'Last checked',
-                  children: new Date(health.dataUpdatedAt).toLocaleString(),
+                  children: formatTehranDateTime(health.dataUpdatedAt),
                 },
               ]}
             />

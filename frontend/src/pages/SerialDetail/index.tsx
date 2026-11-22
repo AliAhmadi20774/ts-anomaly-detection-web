@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react';
 import { hasPermission } from '@/services/auth';
 import { type MeasurementBatch, measurementBatches } from '@/services/measurementBatches';
 import { type SignalTraceData, type SignalTraceSummary, testRuns } from '@/services/testRuns';
+import { formatTehranDateTime } from '@/utils/dateTime';
 import '../SerialBatchDetail/index.css';
 
 export default function SerialDetailPage() {
@@ -125,7 +126,7 @@ export default function SerialDetailPage() {
             <div className="batch-detail-metrics">
               <div><span>Device type</span><strong>{device.device_type_name}</strong></div>
               <div><span>Tests</span><strong>{device.tests.length}</strong></div>
-              <div><span>Received at</span><strong>{new Date(batch.created_at).toLocaleString()}</strong></div>
+              <div><span>Received at</span><strong>{formatTehranDateTime(batch.created_at)}</strong></div>
             </div>
           </section>
 
@@ -143,7 +144,7 @@ export default function SerialDetailPage() {
                   <span className="batch-detail-test-icon"><ExperimentOutlined /></span>
                   <span className="batch-detail-test-copy">
                     <strong>{run.test_name}</strong>
-                    <small><ClockCircleOutlined /> {new Date(run.executed_at).toLocaleString()}</small>
+                    <small><ClockCircleOutlined /> {formatTehranDateTime(run.executed_at)}</small>
                   </span>
                   <Tag variant="filled">{run.sample_rate_hz} Hz</Tag>
                   <RightOutlined className="batch-detail-chevron" aria-hidden="true" />

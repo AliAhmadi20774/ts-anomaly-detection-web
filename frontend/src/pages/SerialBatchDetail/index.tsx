@@ -4,6 +4,7 @@ import { Link, useParams } from '@umijs/max';
 import { Alert, Breadcrumb, Empty, Input, Spin } from 'antd';
 import { useEffect, useState } from 'react';
 import { type MeasurementBatch, measurementBatches } from '@/services/measurementBatches';
+import { formatTehranDateTime } from '@/utils/dateTime';
 import './index.css';
 
 export default function SerialBatchDetailPage() {
@@ -53,7 +54,7 @@ export default function SerialBatchDetailPage() {
               <span className="batch-detail-summary-icon"><DatabaseOutlined /></span>
               <div>
                 <span className="batch-detail-eyebrow">DATA IMPORT</span>
-                <h2>Received {new Date(batch.created_at).toLocaleString()}</h2>
+                <h2>Received {formatTehranDateTime(batch.created_at)}</h2>
                 <p>Select a serial number to inspect its measurements.</p>
               </div>
             </div>

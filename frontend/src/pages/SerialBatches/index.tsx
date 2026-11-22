@@ -4,13 +4,14 @@ import { Link } from '@umijs/max';
 import { Alert } from 'antd';
 import { useState } from 'react';
 import { type MeasurementBatch, measurementBatches } from '@/services/measurementBatches';
+import { formatTehranDateTime } from '@/utils/dateTime';
 
 export default function SerialBatchesPage() {
   const [loadError, setLoadError] = useState<string>();
 
   const columns: ProColumns<MeasurementBatch>[] = [
-    { title: 'Received at', dataIndex: 'created_at', valueType: 'dateTime', search: false,
-      render: (dom, batch) => <Link to={`/serial-batches/${batch.id}`}>{dom}</Link> },
+    { title: 'Received at', dataIndex: 'created_at', search: false,
+      render: (_, batch) => <Link to={`/serial-batches/${batch.id}`}>{formatTehranDateTime(batch.created_at)}</Link> },
     {
       title: 'Device type', key: 'device_type', search: false,
       render: (_, batch) => [...new Set(batch.devices.map((device) => device.device_type_name))].join(', ') || '—',

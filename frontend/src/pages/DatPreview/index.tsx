@@ -8,6 +8,7 @@ import type { TableColumnsType, UploadFile } from 'antd';
 import { useEffect, useRef, useState } from 'react';
 import { deviceOptions, type SelectOption } from '@/services/definitions';
 import { type DatDevice, type DatFilePreview, type DatImportResult, type DatPreview, type DatTest, importDatFiles, previewDatFiles } from '@/services/datPreview';
+import { formatTehranDateTime } from '@/utils/dateTime';
 
 function TestDetails({ test }: { test: DatTest }) {
   const table = test.flat_result_table;
@@ -218,12 +219,12 @@ export default function DatPreviewPage() {
           />}
         />}
         {importResult?.batch && <Card title="Imported serial batch"
-          extra={`Received ${new Date(importResult.batch.created_at).toLocaleString()}`}>
+          extra={`Received ${formatTehranDateTime(importResult.batch.created_at)}`}>
           <Collapse items={importResult.batch.devices.map((device) => ({
             key: device.id,
             label: `${device.device_type} / ${device.serial_number} · ${device.tests.length} tests`,
             children: <List size="small" dataSource={device.tests}
-              renderItem={(test) => <List.Item>{test.name} · {new Date(test.executed_at).toLocaleString()}</List.Item>}
+              renderItem={(test) => <List.Item>{test.name} · {formatTehranDateTime(test.executed_at)}</List.Item>}
             />,
           }))} />
         </Card>}
