@@ -99,12 +99,12 @@ export default function TestDefinitionsPage() {
           }
         }}
       >
-        <ProFormText name="name" label="Name" rules={[
+        <ProFormText name="name" label="Name" fieldProps={{ 'aria-label': 'Name' }} rules={[
           { required: true, whitespace: true, message: 'Enter a name.' },
         ]} />
         <ProFormSelect name="device_type" label="Device type" debounceTime={300}
           rules={[{ required: true, message: 'Select a device type.' }]}
-          fieldProps={{ showSearch: true, filterOption: false, disabled: !canViewParents }}
+          fieldProps={{ 'aria-label': 'Device type', showSearch: true, filterOption: false, disabled: !canViewParents }}
           request={({ keyWords }) => {
             const selected = editing
               ? { value: editing.device_type, label: editing.device_type_name } : undefined;
@@ -112,7 +112,7 @@ export default function TestDefinitionsPage() {
               : Promise.resolve(selected ? [selected] : []);
           }}
         />
-        <ProFormDigit name="sample_rate_hz" label="Sample rate (Hz)"
+        <ProFormDigit name="sample_rate_hz" label="Sample rate (Hz)" fieldProps={{ 'aria-label': 'Sample rate (Hz)' }}
           rules={[
             { required: true, message: 'Enter a sample rate.' },
             { validator: (_: unknown, value: number | null | undefined) => value == null || (Number.isFinite(value) && value > 0)

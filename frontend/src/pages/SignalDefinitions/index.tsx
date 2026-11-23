@@ -99,12 +99,12 @@ export default function SignalDefinitionsPage() {
           }
         }}
       >
-        <ProFormText name="name" label="Name" rules={[
+        <ProFormText name="name" label="Name" fieldProps={{ 'aria-label': 'Name' }} rules={[
           { required: true, whitespace: true, message: 'Enter a name.' },
         ]} />
         <ProFormSelect name="test" label="Test" debounceTime={300}
           rules={[{ required: true, message: 'Select a test.' }]}
-          fieldProps={{ showSearch: true, filterOption: false, disabled: !canViewParents }}
+          fieldProps={{ 'aria-label': 'Test', showSearch: true, filterOption: false, disabled: !canViewParents }}
           request={({ keyWords }) => {
             const selected = editing ? {
               value: editing.test, label: `${editing.device_type_name} / ${editing.test_name}`,

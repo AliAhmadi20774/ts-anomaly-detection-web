@@ -93,7 +93,7 @@ export default function DeviceTypesPage() {
           }
         }}
       >
-        <ProFormText name="name" label="Name" rules={[
+        <ProFormText name="name" label="Name" fieldProps={{ 'aria-label': 'Name' }} rules={[
           { required: true, whitespace: true, message: 'Enter a name.' },
         ]} />
         

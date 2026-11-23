@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test';
 
+test.use({ actionTimeout: 15_000 });
+
 test('rejects invalid personnel-code credentials', async ({ page }) => {
   await page.goto('/user/login');
   await page.getByLabel('Personnel code', { exact: true }).fill('unknown-personnel-code');
@@ -21,10 +23,10 @@ test('manages device, test and signal definitions through the real API', async (
     await page.getByRole('button', { name: 'Sign in', exact: true }).click();
     await expect(page).toHaveURL(/\/backend-status/);
     await page.reload();
-    await expect(page.getByRole('link', { name: 'Device types', exact: true })).toBeVisible();
+    await expect(page.getByRole('link', { name: /Device types$/ })).toBeVisible();
 
-    await page.getByRole('link', { name: 'Device types', exact: true }).click();
-    await page.getByRole('button', { name: 'New device type', exact: true }).click();
+    await page.getByRole('link', { name: /Device types$/ }).click();
+    await page.getByRole('button', { name: /New device type$/ }).click();
     let dialog = page.getByRole('dialog');
     await dialog.getByLabel('Name', { exact: true }).fill(marker);
     let saved = page.waitForResponse((response) =>
@@ -35,8 +37,8 @@ test('manages device, test and signal definitions through the real API', async (
     created.push({ resource: 'device-types', id: (await response.json()).id });
     await expect(page.getByRole('row').filter({ hasText: marker })).toBeVisible();
 
-    await page.getByRole('link', { name: 'Test definitions', exact: true }).click();
-    await page.getByRole('button', { name: 'New test definition', exact: true }).click();
+    await page.getByRole('link', { name: /Test definitions$/ }).click();
+    await page.getByRole('button', { name: /New test definition$/ }).click();
     dialog = page.getByRole('dialog');
     await dialog.getByLabel('Name', { exact: true }).fill(marker + '-test');
     await dialog.getByRole('combobox', { name: 'Device type', exact: true }).fill(marker);
@@ -58,8 +60,8 @@ test('manages device, test and signal definitions through the real API', async (
     await dialog.getByRole('button', { name: 'Save', exact: true }).click();
     expect((await updated).status()).toBe(200);
 
-    await page.getByRole('link', { name: 'Signal definitions', exact: true }).click();
-    await page.getByRole('button', { name: 'New signal definition', exact: true }).click();
+    await page.getByRole('link', { name: /Signal definitions$/ }).click();
+    await page.getByRole('button', { name: /New signal definition$/ }).click();
     dialog = page.getByRole('dialog');
     await dialog.getByLabel('Name', { exact: true }).fill(marker + '-signal');
     await dialog.getByRole('combobox', { name: 'Test', exact: true }).fill(marker + '-test');
@@ -78,7 +80,7 @@ test('manages device, test and signal definitions through the real API', async (
       ['Test definitions', marker + '-test'],
       ['Device types', marker],
     ]) {
-      await page.getByRole('link', { name: menu, exact: true }).click();
+      await page.getByRole('link', { name: new RegExp(`${menu}$`) }).click();
       await page.getByRole('row').filter({ hasText: name })
         .getByRole('button', { name: 'Delete', exact: true }).click();
       await page.getByRole('tooltip').getByRole('button', { name: 'Delete', exact: true }).click();

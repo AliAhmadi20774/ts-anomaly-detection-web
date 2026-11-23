@@ -44,6 +44,8 @@ test('previews files for the selected device type', async ({ page }) => {
   await page.getByText('Vibration · 2 signals', { exact: true }).click();
   await expect(page.getByText('Operator 007', { exact: true })).toBeVisible();
   await expect(page.getByText('1405/08/28 10:30', { exact: true })).toBeVisible();
-  await expect(page.getByText('RMS', { exact: true })).toBeVisible();
-  await expect(page.getByRole('cell', { name: 'temperature', exact: true })).toBeVisible();
+  const rmsHeader = page.getByRole('columnheader', { name: 'RMS', exact: true });
+  await expect(rmsHeader).toBeVisible();
+  const resultTable = rmsHeader.locator('xpath=ancestor::table[1]');
+  await expect(resultTable.getByRole('cell', { name: 'temperature', exact: true })).toBeVisible();
 });
