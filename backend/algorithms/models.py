@@ -1,7 +1,11 @@
 from uuid import uuid4
 
-from django.core.validators import RegexValidator
+from django.core.exceptions import ValidationError
+from django.core.validators import MinValueValidator, RegexValidator
 from django.db import models
+from django.db.models.lookups import Exact
+
+from algorithms.validators import InputSpecValidator, JsonObjectValidator
 
 
 class Algorithm(models.Model):
@@ -37,3 +41,47 @@ class Algorithm(models.Model):
 
     def __str__(self) -> str:
         return self.name
+
+
+class ModelVersion(models.Model):
+    """Describe one trained model version without coupling columns to its architecture."""
+
+    id = models.UUIDField(primary_key=True, default=uuid4, editable=False)
+    algorithm = models.ForeignKey(Algorithm, on_delete=models.PROTECT, related_name="model_versions")
+    version = models.PositiveIntegerField(validators=[MinValueValidator(1)])
+    architecture_params = models.JSONField(default=dict, blank=True, validators=[JsonObjectValidator()])
+    input_spec = models.JSONField(validators=[InputSpecValidator()])
+
+    class Meta:
+        db_table = "model_versions"
+        ordering = ["algorithm", "version"]
+        constraints = [
+            models.UniqueConstraint(fields=["algorithm", "version"], name="model_versions_algorithm_version_unique"),
+            models.CheckConstraint(condition=models.Q(version__gt=0), name="model_versions_version_positive"),
+            models.CheckConstraint(
+                condition=Exact(
+                    models.Func("architecture_params", function="jsonb_typeof", output_field=models.CharField()),
+                    models.Value("object"),
+                ),
+                name="model_versions_architecture_object",
+            ),
+            models.CheckConstraint(
+                condition=Exact(
+                    models.Func("input_spec", function="jsonb_typeof", output_field=models.CharField()),
+                    models.Value("object"),
+                ),
+                name="model_versions_input_object",
+            ),
+        ]
+
+    def clean(self):
+        super().clean()
+        # Allow an empty object, while rejecting empty non-object values that
+        # Django skips during field validation when blank=True.
+        try:
+            JsonObjectValidator()(self.architecture_params)
+        except ValidationError as error:
+            raise ValidationError({"architecture_params": error.messages}) from error
+
+    def __str__(self) -> str:
+        return f"{self.algorithm.key} v{self.version}"
