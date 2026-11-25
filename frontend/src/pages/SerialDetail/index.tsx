@@ -53,10 +53,11 @@ export default function SerialDetailPage() {
   const device = batch?.devices.find((item) => item.id === deviceId);
   const selectedTest = device?.tests.find((test) => test.id === selectedTestId);
 
-  const loadReport = async (all: boolean, includeSignals = true): Promise<TestReport> => {
-    if (!batch || !device || !selectedTest) throw new Error('Select a test first.');
+  const loadReport = async (all: boolean, includeSignals = true, testId = selectedTestId): Promise<TestReport> => {
+    const requestedTest = device?.tests.find((test) => test.id === testId);
+    if (!batch || !device || !requestedTest) throw new Error('Select a test first.');
     const tests: ReportTest[] = [];
-    for (const run of all ? device.tests : [selectedTest]) {
+    for (const run of all ? device.tests : [requestedTest]) {
       const [detail, signals] = await Promise.all([
         getDetail(run.id), includeSignals ? getSignals(run.id) : Promise.resolve([]),
       ]);
@@ -110,7 +111,7 @@ export default function SerialDetailPage() {
             {selectedTest && <TestResults key={selectedTest.id} runId={selectedTest.id}
               testName={selectedTest.test_name} canView={canViewResults} getDetail={getDetail}
               actions={<SerialActions key={selectedTest.id} testName={selectedTest.test_name}
-                disabled={!canViewResults} loadReport={loadReport} />} />}
+                testId={selectedTest.id} tests={device.tests} disabled={!canViewResults} loadReport={loadReport} />} />}
           </div>
         </>}
       </div>

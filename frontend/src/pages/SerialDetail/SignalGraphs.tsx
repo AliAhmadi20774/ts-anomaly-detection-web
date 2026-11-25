@@ -3,7 +3,7 @@ import { LineChart, type LineSeriesOption } from 'echarts/charts';
 import { DataZoomComponent, GridComponent } from 'echarts/components';
 import { init, use, type EChartsType } from 'echarts/core';
 import { CanvasRenderer } from 'echarts/renderers';
-import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent, type ReactNode } from 'react';
 import type { SignalTraceData } from '@/services/testRuns';
 import { signalPoints } from '@/utils/signalChart';
 import { signalScreenshot } from '@/utils/signalScreenshot';
@@ -55,7 +55,9 @@ function nearestSample(chart: EChartsType, signal: SignalTraceData, sampleRate: 
   return sample;
 }
 
-export default function SignalGraphs({ signals, sampleRate, testName }: { signals: SignalTraceData[]; sampleRate: number; testName: string }) {
+export default function SignalGraphs({ signals, sampleRate, testName, testSelector }: {
+  signals: SignalTraceData[]; sampleRate: number; testName: string; testSelector?: ReactNode;
+}) {
   const host = useRef<HTMLDivElement>(null);
   const legend = useRef<HTMLDivElement>(null);
   const grid = useRef({ ...defaultGrid }).current;
@@ -372,8 +374,11 @@ export default function SignalGraphs({ signals, sampleRate, testName }: { signal
     finally { setCapturing(false); }
   };
 
-  if (!signals.length) return <div className="signal-workspace-message"><Empty description="No signals stored for this test" /></div>;
-  if (!validRate) return <div className="signal-workspace-message"><Alert type="error" showIcon title="A valid sample rate is required to plot signals against time." /></div>;
+  if (!signals.length || !validRate) return <div className="signal-workspace">
+    <div className="signal-legend">{testSelector}</div>
+    <div className="signal-workspace-message">{!signals.length ? <Empty description="No signals stored for this test" />
+      : <Alert type="error" showIcon title="A valid sample rate is required to plot signals against time." />}</div>
+  </div>;
   const hoveredSignal = hovered && traces.find((signal) => signal.id === hovered.signalId);
   const measuredSignal = measurement && selected.includes(measurement.signalId) && traces.find((signal) => signal.id === measurement.signalId);
   const available = traces.filter((signal) => signal.samples.length);
@@ -381,7 +386,7 @@ export default function SignalGraphs({ signals, sampleRate, testName }: { signal
 
   return <div ref={workspace} className="signal-workspace">
       <div ref={legend} className="signal-legend" role="group" aria-label="Signals">
-        <span className="signal-test-name">{testName}</span>
+        {testSelector ?? <span className="signal-test-name">{testName}</span>}
         {traces.map((signal) => {
           const visible = selected.includes(signal.id);
           return <button type="button" key={signal.id} className={`signal-toggle${visible ? ' is-visible' : ''}`}
