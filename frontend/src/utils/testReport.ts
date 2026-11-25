@@ -22,13 +22,10 @@ export interface TestReport {
 export function testMetadata(report: TestReport, test: ReportTest): string[][] {
   return [
     ['Serial number', report.serialNumber], ['Device type', report.deviceType],
-    ['Device type ID', report.deviceTypeId], ['Device run ID', report.deviceRunId],
-    ['Test', test.run.test_name], ['Test ID', test.run.id], ['Test definition ID', test.run.test],
-    ['Executed at (ISO)', test.run.executed_at],
-    ['Executed at (Tehran)', formatTehranDateTime(test.run.executed_at)],
-    ['Operator', test.detail.source_operator_name], ['Source file', test.detail.source_file_name],
-    ['Sample rate (Hz, test definition)', String(test.run.sample_rate_hz)],
-    ['Batch ID', report.batchId], ['Received at (ISO)', report.receivedAt],
+    ['Test', test.run.test_name],
+    ['Executed at', formatTehranDateTime(test.run.executed_at)],
+    ['Operator', test.detail.source_operator_name],
+    ['Sample rate', String(test.run.sample_rate_hz)],
     ['Recorded by', report.recordedBy],
   ];
 }

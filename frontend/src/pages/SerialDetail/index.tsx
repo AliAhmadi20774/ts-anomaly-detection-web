@@ -1,4 +1,4 @@
-import { ClockCircleOutlined, ExperimentOutlined, NumberOutlined, RightOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, ClockCircleOutlined, ExperimentOutlined, RightOutlined } from '@ant-design/icons';
 import { PageContainer } from '@ant-design/pro-components';
 import { Link, useModel, useParams } from '@umijs/max';
 import { Alert, Breadcrumb, Empty, Spin } from 'antd';
@@ -53,11 +53,13 @@ export default function SerialDetailPage() {
   const device = batch?.devices.find((item) => item.id === deviceId);
   const selectedTest = device?.tests.find((test) => test.id === selectedTestId);
 
-  const loadReport = async (all: boolean): Promise<TestReport> => {
+  const loadReport = async (all: boolean, includeSignals = true): Promise<TestReport> => {
     if (!batch || !device || !selectedTest) throw new Error('Select a test first.');
     const tests: ReportTest[] = [];
     for (const run of all ? device.tests : [selectedTest]) {
-      const [detail, signals] = await Promise.all([getDetail(run.id), getSignals(run.id)]);
+      const [detail, signals] = await Promise.all([
+        getDetail(run.id), includeSignals ? getSignals(run.id) : Promise.resolve([]),
+      ]);
       tests.push({ run, detail, signals });
     }
     return { serialNumber: device.serial_number, deviceType: device.device_type_name,
@@ -74,38 +76,19 @@ export default function SerialDetailPage() {
               { title: <Link to="/serial-batches">Serial batches</Link> },
               { title: batchId ? <Link to={`/serial-batches/${batchId}`}>Batch details</Link> : 'Batch details' },
               ...(device ? [{ title: device.serial_number }] : []),
-              ...(selectedTest ? [{ title: selectedTest.test_name }] : []),
             ]} />
           </div>
-          <div className="serial-detail-tools">
-            {selectedTest && <SerialActions key={selectedTest.id} testName={selectedTest.test_name}
-              disabled={!canViewResults} loadReport={loadReport} />}
-            {batchId && <Link className="serial-back-link" to={`/serial-batches/${batchId}`}>Back to batch</Link>}
-          </div>
+          {batchId && <Link className="serial-back-link" to={`/serial-batches/${batchId}`}>
+            <ArrowLeftOutlined aria-hidden="true" /> Back to batch
+          </Link>}
         </header>
         {batchLoading && <div className="batch-detail-loading"><Spin size="large" /></div>}
         {batchError && <Alert type="error" showIcon title={batchError} />}
         {batch && device && <>
-          <section className="batch-detail-summary" aria-label="Serial overview">
-            <div className="batch-detail-summary-main">
-              <span className="batch-detail-summary-icon"><NumberOutlined /></span>
-              <div>
-                <span className="batch-detail-eyebrow">SERIAL NUMBER</span>
-                <h2>{device.serial_number}</h2>
-                <p>Tests and results recorded for this serial.</p>
-              </div>
-            </div>
-            <div className="batch-detail-metrics">
-              <div><span>Device type</span><strong>{device.device_type_name}</strong></div>
-              <div><span>Tests</span><strong>{device.tests.length}</strong></div>
-              <div><span>Received at</span><strong>{formatTehranDateTime(batch.created_at)}</strong></div>
-            </div>
-          </section>
-
           <div className="batch-detail-main">
             <section className="batch-detail-panel batch-detail-tests-panel" aria-label={`Tests for ${device.serial_number}`}>
               <div className="batch-detail-panel-header">
-                <div><h2>Tests</h2><p>Select a test to view results.</p></div>
+                <h2>Tests</h2>
                 <span className="batch-detail-count">{device.tests.length}</span>
               </div>
               <div className="batch-detail-test-list">
@@ -125,7 +108,9 @@ export default function SerialDetailPage() {
             </section>
 
             {selectedTest && <TestResults key={selectedTest.id} runId={selectedTest.id}
-              testName={selectedTest.test_name} canView={canViewResults} getDetail={getDetail} />}
+              testName={selectedTest.test_name} canView={canViewResults} getDetail={getDetail}
+              actions={<SerialActions key={selectedTest.id} testName={selectedTest.test_name}
+                disabled={!canViewResults} loadReport={loadReport} />} />}
           </div>
         </>}
       </div>

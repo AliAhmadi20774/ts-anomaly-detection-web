@@ -57,7 +57,7 @@ test('opens a batch, then its serial, test, and results', async ({ page, context
     await expect(page.getByText('Batch details', { exact: true }).first()).toBeVisible();
     await expect(page.getByText(run.measurement_batch.slice(0, 8), { exact: true })).toHaveCount(0);
     await expect(page.getByText(`Tests for ${marker}`)).toHaveCount(0);
-    await page.getByRole('link', { name: `${marker} / ${marker} · 1 tests` }).click();
+    await page.getByRole('link', { name: `${marker} · 1 tests` }).click();
     await expect(page).toHaveURL(new RegExp(`/serial-batches/${run.measurement_batch}/serials/[^/]+$`));
     await expect(page.getByText('Serial details', { exact: true }).first()).toBeVisible();
     await expect(page.getByRole('region', { name: `Tests for ${marker}`, exact: true })).toBeVisible();
@@ -65,7 +65,7 @@ test('opens a batch, then its serial, test, and results', async ({ page, context
     await expect(page.getByText(`Results for ${marker}`)).toBeVisible();
     await expect(page.getByText('No result table stored for this test')).toBeVisible();
     await page.getByRole('link', { name: 'Back to batch' }).click();
-    await expect(page.getByRole('link', { name: `${marker} / ${marker} · 1 tests` })).toBeVisible();
+    await expect(page.getByRole('link', { name: `${marker} · 1 tests` })).toBeVisible();
   } finally {
     for (const path of created.reverse()) {
       const response = await context.request.delete(path, { headers: await csrfHeaders() });

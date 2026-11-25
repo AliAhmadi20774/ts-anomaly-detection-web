@@ -1,4 +1,4 @@
-import { escapeHtml, signalSvg } from './signalChart';
+import { escapeHtml } from './signalChart';
 import { type TestReport, testMetadata } from './testReport';
 import { formatTehranDateTime } from './dateTime';
 
@@ -22,10 +22,9 @@ export function reportHtml(report: TestReport) {
     } else if (table && (table.columns.length || table.flattened_rows.length)) {
       throw new Error('The result table has incomplete rows or columns.');
     }
-    return `<section class="test"><div class="test-heading"><h2>${escapeHtml(test.run.test_name)}</h2><span>${escapeHtml(formatTehranDateTime(test.run.executed_at))} (Tehran)</span></div>
+    return `<section class="test"><div class="test-heading"><h2>${escapeHtml(test.run.test_name)}</h2><span>${escapeHtml(formatTehranDateTime(test.run.executed_at))}</span></div>
       <dl>${testMetadata(report, test).map(([key, value]) => `<div><dt>${escapeHtml(key)}</dt><dd>${escapeHtml(value || '-')}</dd></div>`).join('')}</dl>
-      <h3>Parameters</h3>${parameters}<h3>Signals</h3>
-      ${test.signals.length ? test.signals.map((signal) => `<figure><figcaption><strong>${escapeHtml(signal.name)}</strong><span>${signal.samples.length.toLocaleString('en-US')} samples</span></figcaption>${signalSvg(signal.name, signal.samples)}</figure>`).join('') : '<p class="muted">No signals stored.</p>'}
+      <h3>Parameters</h3>${parameters}
     </section>`;
   }).join('');
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -39,12 +38,11 @@ export function reportHtml(report: TestReport) {
     .test-heading span{color:#667085;font-size:12px}dl{display:grid;grid-template-columns:1fr 1fr;gap:0 24px;margin:16px 0}
     dl>div{display:grid;grid-template-columns:160px 1fr;padding:7px 0;border-bottom:1px solid #edf0f5;gap:12px;break-inside:avoid}dt{color:#667085}dd{margin:0;overflow-wrap:anywhere}
     table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:10px}th,td{padding:7px 5px;border:1px solid #e4eaf2;text-align:left;overflow-wrap:anywhere;vertical-align:top}th{background:#edf4ff;color:#234e89}thead{display:table-header-group}tr{break-inside:avoid}
-    figure{margin:16px 0 24px;padding:14px;border:1px solid #e4eaf2;border-radius:8px;break-inside:avoid}figcaption{display:flex;justify-content:space-between;gap:16px;margin-bottom:8px}figcaption span{color:#667085;font-size:12px}svg{max-height:240px}
     @page{size:A4 landscape;margin:12mm}
-    @media print{body{background:white;font-size:10px}.tools{display:none}main{max-width:none;padding:0;margin:0}.test+.test{margin-top:0}h1{font-size:20px}h2{font-size:17px}h3{margin-top:18px}dl>div{padding:5px 0}table{font-size:8px}th,td{padding:5px 4px}figure{padding:10px;margin:12px 0 18px}svg{max-height:190px}.report-heading{margin-bottom:18px;padding-bottom:14px}}
+    @media print{body{background:white;font-size:10px}.tools{display:none}main{max-width:none;padding:0;margin:0}.test+.test{margin-top:0}h1{font-size:20px}h2{font-size:17px}h3{margin-top:18px}dl>div{padding:5px 0}table{font-size:8px}th,td{padding:5px 4px}.report-heading{margin-bottom:18px;padding-bottom:14px}}
     @media screen and (max-width:700px){main{padding:18px;margin:12px}dl{grid-template-columns:1fr}.tools{flex-wrap:wrap}.test-heading{align-items:flex-start;flex-direction:column}}
     </style></head><body><div class="tools"><span>Test report · Choose <strong>Save as PDF</strong> in the print dialog.</span><button id="save-pdf" type="button">Print / Save as PDF</button></div>
-    <main><header class="report-heading"><h1>Test report</h1><p><strong>${escapeHtml(report.serialNumber)}</strong> · ${escapeHtml(report.deviceType)}</p><p class="muted">${report.tests.length} test${report.tests.length === 1 ? '' : 's'} · Parameters and signal charts</p></header>${tests}</main></body></html>`;
+    <main><header class="report-heading"><h1>Test report</h1><p><strong>${escapeHtml(report.serialNumber)}</strong> · ${escapeHtml(report.deviceType)}</p><p class="muted">${report.tests.length} test${report.tests.length === 1 ? '' : 's'} · Parameters and results</p></header>${tests}</main></body></html>`;
 }
 
 export async function showPdfReport(target: Window, report: TestReport) {

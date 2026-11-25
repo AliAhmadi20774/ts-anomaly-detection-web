@@ -77,12 +77,11 @@ export default function SerialBatchDetailPage() {
             <div className="batch-detail-serial-grid">
               {visibleDevices.map((device) => <Link key={device.id}
                 className="batch-detail-serial-item"
-                aria-label={`${device.device_type_name} / ${device.serial_number} · ${device.tests.length} tests`}
+                aria-label={`${device.serial_number} · ${device.tests.length} tests`}
                 to={`/serial-batches/${batchId}/serials/${device.id}`}>
-                <span className="batch-detail-serial-mark" aria-hidden="true">{device.serial_number.slice(0, 2).toUpperCase()}</span>
                 <span className="batch-detail-serial-copy">
                   <strong>{device.serial_number}</strong>
-                  <small>{device.device_type_name} · {device.tests.length} tests</small>
+                  <small>{device.tests.length} tests</small>
                 </span>
                 <RightOutlined className="batch-detail-chevron" aria-hidden="true" />
               </Link>)}

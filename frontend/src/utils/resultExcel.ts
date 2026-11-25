@@ -2,12 +2,14 @@ import type { FlatResultData } from '@/services/testRuns';
 import type { Workbook, Worksheet } from 'exceljs';
 import { type TestReport, testMetadata } from './testReport';
 
-/** Build a workbook from the complete table already loaded by the UI. */
-export async function resultExcel(table: FlatResultData): Promise<Blob> {
-  const { default: ExcelJS } = await import('exceljs');
-  const workbook = new ExcelJS.Workbook();
-  addParameters(workbook, 'Results', table);
-  return workbookBlob(workbook);
+function worksheetName(workbook: Workbook, testName: string, section: string) {
+  const label = testName.replace(/[\\/?*\[\]:\u0000-\u001f]/g, ' ').trim()
+    .replace(/^'+|'+$/g, '').trim() || 'Test';
+  for (let copy = 1; ; copy += 1) {
+    const suffix = ` - ${section}${copy > 1 ? ` (${copy})` : ''}`;
+    const name = `${label.slice(0, 31 - suffix.length).trimEnd()}${suffix}`;
+    if (!workbook.worksheets.some((sheet) => sheet.name.toLowerCase() === name.toLowerCase())) return name;
+  }
 }
 
 function addParameters(workbook: Workbook, name: string, table: FlatResultData) {
@@ -80,27 +82,29 @@ async function workbookBlob(workbook: Workbook) {
 export async function completeExcel(report: TestReport): Promise<Blob> {
   const { default: ExcelJS } = await import('exceljs');
   const workbook = new ExcelJS.Workbook();
-  const overview = workbook.addWorksheet('Overview');
-  overview.addRow(['Test', 'Property', 'Value']);
+  const overview = workbook.addWorksheet('Summary');
   for (const [index, test] of report.tests.entries()) {
-    testMetadata(report, test).forEach(([key, value]) => overview.addRow([test.run.test_name, key, value]));
-    test.signals.forEach((signal) => overview.addRow([test.run.test_name, `Samples: ${signal.name}`, signal.samples.length]));
+    const metadata = testMetadata(report, test).filter(([key]) => key !== 'Test');
+    if (index === 0) overview.addRow(['Test', ...metadata.map(([key]) => key)]);
+    overview.addRow([test.run.test_name, ...metadata.map(([, value]) => value)]);
     const table = test.detail.flat_result_data;
     if (table && (table.columns.length || table.flattened_rows.length)) {
-      if (table.flattened_rows.length) addParameters(workbook, `${index + 1} Parameters`, table);
+      const name = worksheetName(workbook, test.run.test_name, 'Results');
+      if (table.flattened_rows.length) addParameters(workbook, name, table);
       else if (table.column_count !== table.columns.length) throw new Error('Invalid parameter table.');
       else {
-        const empty = workbook.addWorksheet(`${index + 1} Parameters`);
+        const empty = workbook.addWorksheet(name);
         empty.addRow(table.columns);
         styleSheet(empty);
       }
     }
+    if (!test.signals.length) continue;
     if (test.signals.length > 16383) throw new Error('There are too many signals for one Excel worksheet.');
     const sampleCount = Math.max(0, ...test.signals.map((signal) => signal.samples.length));
     // Split very long recordings across worksheets, keeping absolute sample indices.
     const sheetCount = Math.max(1, Math.ceil(sampleCount / 1048575));
     for (let part = 0; part < sheetCount; part += 1) {
-      const sheet = workbook.addWorksheet(`${index + 1} Signals${part ? ` ${part + 1}` : ''}`);
+      const sheet = workbook.addWorksheet(worksheetName(workbook, test.run.test_name, `Raw Signals${part ? ` ${part + 1}` : ''}`));
       sheet.addRow(['Sample index', ...test.signals.map((signal) => signal.name)]);
       const start = part * 1048575;
       const end = Math.min(sampleCount, start + 1048575);
