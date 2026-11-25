@@ -26,6 +26,13 @@ const shiftedWindow = ([start, end]: [number, number], delta: number) => {
   const next = Math.max(0, Math.min(100 - (end - start), start + delta));
   return { start: next, end: next + end - start };
 };
+const zoomedWindow = ([start, end]: [number, number], factor: number, anchor: number, minimum: number) => {
+  const span = end - start;
+  const nextSpan = Math.max(minimum, Math.min(100, span * factor));
+  if (nextSpan >= 100 - 1e-9) return { start: 0, end: 100 };
+  const nextStart = Math.max(0, Math.min(100 - nextSpan, start + (span - nextSpan) * anchor));
+  return { start: nextStart, end: nextStart + nextSpan };
+};
 
 function nearestSample(chart: EChartsType, signal: SignalTraceData, sampleRate: number, x: number, y: number, clamp = false) {
   let [time, value] = chart.convertFromPixel({ gridIndex: 0 }, [x, y]) as number[];
@@ -164,7 +171,7 @@ export default function SignalGraphs({ signals, sampleRate, testName }: { signal
         splitLine: { lineStyle: { color: '#e8edf3' } } },
       dataZoom: [
         { id: 'time-inside', type: 'inside', xAxisIndex: 0, filterMode: 'none', minValueSpan: 1 / sampleRate,
-          zoomOnMouseWheel: true, moveOnMouseMove: false, moveOnMouseWheel: false },
+          zoomOnMouseWheel: false, moveOnMouseMove: false, moveOnMouseWheel: false },
         { id: 'value-inside', type: 'inside', yAxisIndex: 0, filterMode: 'none', zoomOnMouseWheel: false,
           moveOnMouseMove: false, moveOnMouseWheel: false },
       ],
@@ -179,6 +186,31 @@ export default function SignalGraphs({ signals, sampleRate, testName }: { signal
       draw();
     };
     instance.on('datazoom', onZoom);
+    const viewport = host.current.parentElement!;
+    const onWheel = (event: WheelEvent) => {
+      const rect = viewport.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
+      if (!instance.containPixel({ gridIndex: 0 }, [x, y]) || !event.deltaY) return;
+      event.preventDefault();
+      event.stopPropagation();
+      horizontalPan.stop();
+      if (drag.current) return;
+      // Normalize mouse/trackpad units and cap individual wheel bursts. Reciprocal
+      // factors make equal scrolls in opposite directions restore the same view.
+      const pixels = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? rect.height : 1);
+      const factor = Math.exp(Math.max(-120, Math.min(120, pixels)) * 0.0015);
+      const zooms = instance.getOption().dataZoom as Zoom[];
+      const zoom = (id: string, anchor: number, minimum: number) => {
+        const window = zooms.find((item) => item.id === id);
+        return { dataZoomId: id, ...zoomedWindow([window?.start ?? 0, window?.end ?? 100], factor, anchor, minimum) };
+      };
+      instance.dispatchAction({ type: 'dataZoom', batch: [
+        zoom('time-inside', (x - grid.left) / (instance.getWidth() - grid.left - grid.right), Math.min(100, 100 / Math.max(1, sampleCount - 1))),
+        zoom('value-inside', 1 - (y - grid.top) / (instance.getHeight() - grid.top - grid.bottom), 0.0001),
+      ] });
+    };
+    viewport.addEventListener('wheel', onWheel, { capture: true, passive: false });
     const clearHover = () => updateHover();
     const onHover = (parameters: unknown) => {
       const event = parameters as { seriesIndex?: number; event?: { offsetX: number; offsetY: number } };
@@ -204,6 +236,7 @@ export default function SignalGraphs({ signals, sampleRate, testName }: { signal
     observer.observe(host.current);
     if (legend.current) observer.observe(legend.current);
     return () => {
+      viewport.removeEventListener('wheel', onWheel, true);
       observer.disconnect();
       instance.off('datazoom', onZoom);
       instance.off('mousemove', onHover);
@@ -367,7 +400,7 @@ export default function SignalGraphs({ signals, sampleRate, testName }: { signal
       <div className={`signal-chart-viewport${panning ? ' is-panning' : ''}${drawing.mode === 'eraser' ? ' is-erasing' : ''}${horizontalPan.anchor ? ' is-horizontal-scrolling' : ''}`}
         onPointerDownCapture={beginSelection} onPointerMoveCapture={moveSelection} onPointerUpCapture={endSelection}
         onPointerCancel={cancelDrag} onLostPointerCapture={cancelDrag}
-        onPointerLeave={horizontalPan.stop} onWheelCapture={horizontalPan.stop}
+        onPointerLeave={horizontalPan.stop}
         onMouseDownCapture={(event) => { if (event.button === 1) event.preventDefault(); }}
         onAuxClick={(event) => { if (event.button === 1) event.preventDefault(); }}
         onContextMenu={(event) => event.preventDefault()} onDoubleClick={(event) => {
