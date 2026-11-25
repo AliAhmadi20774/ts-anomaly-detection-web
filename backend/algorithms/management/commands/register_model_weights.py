@@ -25,5 +25,5 @@ class Command(BaseCommand):
         except (OSError, ValidationError) as error:
             raise CommandError(str(error)) from error
         self.stdout.write(self.style.SUCCESS(
-            f"Registered {artifact.pk}: {artifact.file.name} ({artifact.size_bytes} bytes, SHA256 {artifact.sha256})"
+            f"Registered {artifact.pk}: {artifact.file.name} ({artifact.size_bytes} bytes)"
         ))

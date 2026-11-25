@@ -44,26 +44,21 @@ class Algorithm(models.Model):
 
 
 class ModelArtifact(models.Model):
-    """Track a private stored file by its exact content, independently of model versions."""
+    """Track a private stored weights file independently of model metadata."""
 
     id = models.UUIDField(primary_key=True, default=uuid4, editable=False)
     file = models.FileField(upload_to="model_weights", max_length=255, unique=True)
     size_bytes = models.PositiveBigIntegerField(validators=[MinValueValidator(1)])
-    sha256 = models.CharField(
-        max_length=64, unique=True,
-        validators=[RegexValidator(r"\A[0-9a-f]{64}\Z", "Use a lowercase SHA256 digest.")],
-    )
 
     class Meta:
         db_table = "model_artifacts"
         constraints = [
             models.CheckConstraint(condition=models.Q(size_bytes__gt=0), name="model_artifacts_size_positive"),
-            models.CheckConstraint(condition=models.Q(sha256__regex=r"\A[0-9a-f]{64}\Z"), name="model_artifacts_hash_format"),
             models.CheckConstraint(condition=models.Q(file__regex=r"\S"), name="model_artifacts_file_not_blank"),
         ]
 
     def __str__(self) -> str:
-        return self.sha256
+        return self.file.name
 
 
 class ModelVersion(models.Model):
