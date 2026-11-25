@@ -6,6 +6,7 @@ services:
       - "127.0.0.1:8000:8000"
     environment:
       DJANGO_DEBUG: ${DJANGO_DEBUG:-true}
+      DJANGO_MEDIA_ROOT: /app/media
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-}
       DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,backend}
       PGHOST: ${PGHOST:-shared-postgres}
@@ -14,6 +15,8 @@ services:
       PGUSER: ${PGUSER:-anomaly_app}
       PGPASSWORD: ${PGPASSWORD:?Set PGPASSWORD in .env}
       PGSSLMODE: ${PGSSLMODE:-prefer}
+    volumes:
+      - model_artifacts:/app/media
     networks:
       - default
       - database
@@ -57,3 +60,6 @@ networks:
   database:
     external: true
     name: ${POSTGRES_NETWORK:-shared-postgres-network}
+
+volumes:
+  model_artifacts:

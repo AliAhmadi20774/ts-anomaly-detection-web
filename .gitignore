@@ -82,6 +82,7 @@ celerybeat.pid
 /data/processed/
 /checkpoints/
 /artifacts/
+/backend/media/
 /outputs/
 
 # Editor and operating-system files

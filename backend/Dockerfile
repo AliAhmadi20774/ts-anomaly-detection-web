@@ -19,6 +19,8 @@ COPY accounts/ ./accounts/
 COPY algorithms/ ./algorithms/
 COPY dat_imports/ ./dat_imports/
 
+RUN mkdir -p /app/media && chown appuser:appuser /app/media
+
 USER appuser
 
 EXPOSE 8000

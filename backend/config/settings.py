@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 from django.core.exceptions import ImproperlyConfigured
 
@@ -101,3 +102,6 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 STATIC_URL = "/static/"
+
+# Private model files are accessed through backend services, not public media URLs.
+MEDIA_ROOT = os.environ.get("DJANGO_MEDIA_ROOT", str(Path(__file__).resolve().parent.parent / "media"))
