@@ -26,6 +26,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "accounts.apps.AccountsConfig",
+    "algorithms.apps.AlgorithmsConfig",
     "rest_framework",
     "django_filters",
     "health.apps.HealthConfig",

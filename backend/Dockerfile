@@ -16,6 +16,7 @@ COPY config/ ./config/
 COPY health/ ./health/
 COPY devices/ ./devices/
 COPY accounts/ ./accounts/
+COPY algorithms/ ./algorithms/
 COPY dat_imports/ ./dat_imports/
 
 USER appuser
