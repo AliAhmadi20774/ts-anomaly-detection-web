@@ -2,6 +2,7 @@ from django.db import transaction
 from django.db.models.deletion import ProtectedError
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
+from django_filters import rest_framework as filters
 from rest_framework.exceptions import APIException
 from rest_framework.filters import SearchFilter
 from rest_framework.pagination import PageNumberPagination
@@ -65,6 +66,16 @@ class SignalDefinitionViewSet(ProtectedModelViewSet):
     search_fields = ["name", "test__name", "test__device_type__name"]
 
 
+class MeasurementBatchFilter(filters.FilterSet):
+    device_type = filters.ModelChoiceFilter(
+        field_name="devices__device_type", queryset=DeviceType.objects.all(), distinct=True,
+    )
+
+    class Meta:
+        model = MeasurementBatch
+        fields = ["device_type"]
+
+
 class MeasurementBatchViewSet(ReadOnlyModelViewSet):
     queryset = MeasurementBatch.objects.select_related("recorded_by").prefetch_related(
         "devices__device_type", "devices__test_runs__test",
@@ -72,6 +83,9 @@ class MeasurementBatchViewSet(ReadOnlyModelViewSet):
     serializer_class = MeasurementBatchSerializer
     permission_classes = [ModelPermissions]
     pagination_class = StandardPagination
+    filter_backends = [DjangoFilterBackend, SearchFilter]
+    filterset_class = MeasurementBatchFilter
+    search_fields = ["devices__serial_number"]
 
 
 class TestRunViewSet(ProtectedModelViewSet):

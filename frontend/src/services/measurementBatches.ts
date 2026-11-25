@@ -25,7 +25,7 @@ export interface MeasurementBatch {
 }
 
 export const measurementBatches = {
-  list: (params: { page?: number; page_size?: number } = {}) =>
+  list: (params: { page?: number; page_size?: number; device_type?: string; search?: string } = {}) =>
     apiRequest<Page<MeasurementBatch>>('/measurement-batches/', { params }),
   detail: (id: string) => apiRequest<MeasurementBatch>(`/measurement-batches/${id}/`),
 };
