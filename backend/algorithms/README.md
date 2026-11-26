@@ -5,33 +5,35 @@ content hash. `ModelVersion.weights` references that artifact. Versions without
 weights remain valid metadata records; registering a file does not run or
 validate the model's neural-network architecture.
 
-Every `ModelVersion` belongs to a required `DeviceType`. Version numbers are
-unique per device type and algorithm: two device types can each have `lstm_ae v1`.
+Device names organize folders only; there is no device relationship or extra
+device field on model versions. Version numbers remain unique per algorithm.
 
 Register a file for an existing model version:
 
 ```powershell
 docker compose cp ./checkpoint backend:/tmp/checkpoint
-docker compose exec -T backend python manage.py register_model_weights <model-version-uuid> /tmp/checkpoint
+docker compose exec -T backend python manage.py register_model_weights <model-version-uuid> /tmp/checkpoint --device-folder device1
 ```
 
 The command copies bytes into private storage without deserializing checkpoints.
 Each version gets its own file under
-`model_weights/<device-type-uuid>/<algorithm-key>/v<version>/weights.bin`.
-The stable device ID keeps directories separate even when names are duplicated
-or renamed. For example, models for device1 and device2 use separate device
-directories, each containing its own `lstm_ae/v1/weights.bin`.
+`model_weights/<device-folder>/<algorithm-key>/v<version>/weights.bin`.
+For example, `model_weights/device1/lstm_ae/v1/weights.bin`. Choose a distinct
+folder for each device; the folder does not need to exist in the device table.
+Folder names accept 1-64 letters, digits, underscores or hyphens, without path
+separators. `--device-folder` is required for new files; it can be omitted when
+checking an existing registration. Supplying another location does not move or
+replace an existing registered file.
 Repeating registration compares the stored bytes directly to the supplied file;
 different weights require a new model version. Files are not deduplicated across
 versions. There is no stored checksum or background integrity verification.
 Existing file paths are preserved when migrating away from hashes.
 
-The device migration assigns existing versions automatically only if exactly
-one device type exists. Otherwise, apply `migrate algorithms 0005`, assign each
-existing version's `device_type_id` explicitly using the Django shell, then run
-`migrate` to enforce the required relationship. Database migrations do not move
-stored files; an existing file path can be changed after copying and verifying
-its bytes in the new directory.
+Migration 0007 removes the device relationship introduced by 0005/0006 and
+restores uniqueness per algorithm. It preserves model metadata and file records;
+conflicting version numbers must be resolved before applying it. Database
+migrations do not move stored files; an existing file path can be changed after
+copying and verifying its bytes in the new directory.
 
 Docker Compose persists the files in the `model_artifacts` named volume mounted
 at `/app/media`. Local execution uses `backend/media` by default; override it with

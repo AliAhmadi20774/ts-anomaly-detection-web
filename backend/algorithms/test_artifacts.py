@@ -14,7 +14,6 @@ from django.test import TestCase, override_settings
 
 from algorithms.artifacts import register_weights
 from algorithms.models import Algorithm, ModelArtifact, ModelVersion
-from devices.models import DeviceType
 
 
 class ModelArtifactTests(TestCase):
@@ -27,16 +26,16 @@ class ModelArtifactTests(TestCase):
         self.addCleanup(settings.disable)
         self.version = ModelVersion.objects.create(
             algorithm=Algorithm.objects.get(key="lstm_ae"), version=1,
-            device_type=DeviceType.objects.create(name="device1"),
             architecture_params={"hidden_size": 300, "num_layers": 1, "dropout": 0.2},
             input_spec={"features": ["signal1"], "sample_rate_hz": 1000},
         )
         self.content = b"example checkpoint bytes"
 
-    def register(self, version=None, content=None):
+    def register(self, version=None, content=None, folder="device1"):
         return register_weights(
             (version or self.version).pk,
             ContentFile(self.content if content is None else content, name="../../original checkpoint"),
+            device_folder=folder,
         )
 
     def test_register_stores_exact_bytes_metadata_and_version_link(self):
@@ -54,7 +53,6 @@ class ModelArtifactTests(TestCase):
         self.assertEqual(self.register().pk, first.pk)
         other = ModelVersion.objects.create(
             algorithm=self.version.algorithm, version=2,
-            device_type=self.version.device_type,
             architecture_params={}, input_spec={"features": ["signal1"]},
         )
         second = self.register(version=other)
@@ -63,19 +61,33 @@ class ModelArtifactTests(TestCase):
         self.assertEqual(ModelArtifact.objects.count(), 2)
         self.assertEqual(len([path for path in self.root.rglob("*") if path.is_file()]), 2)
 
-    def test_devices_with_identical_names_have_separate_directories(self):
+    def test_device_folders_are_separate_without_database_device_records(self):
         first = self.register()
         other = ModelVersion.objects.create(
-            algorithm=self.version.algorithm, version=1,
-            device_type=DeviceType.objects.create(name="device1"),
+            algorithm=self.version.algorithm, version=2,
             architecture_params={}, input_spec={"features": ["signal1"]},
         )
-        second = self.register(version=other, content=b"another device checkpoint")
+        second = self.register(version=other, content=b"another device checkpoint", folder="device2")
         self.assertNotEqual(Path(first.file.name).parent.parent.parent, Path(second.file.name).parent.parent.parent)
         with first.file.open("rb") as stored:
             self.assertEqual(stored.read(), self.content)
         with second.file.open("rb") as stored:
             self.assertEqual(stored.read(), b"another device checkpoint")
+
+    def test_folder_is_required_for_new_files_and_cannot_escape_storage(self):
+        for folder in [None, "", "..", "../device1", "device1/other", "device1\\other", "/tmp", "x" * 65]:
+            with self.subTest(folder=folder), self.assertRaises(ValidationError):
+                self.register(folder=folder)
+        self.assertFalse(ModelArtifact.objects.exists())
+        self.assertFalse(list(self.root.rglob("*.bin")))
+
+    def test_existing_registration_can_omit_folder_but_cannot_change_it(self):
+        artifact = self.register()
+        self.assertEqual(self.register(folder=None).pk, artifact.pk)
+        with self.assertRaisesMessage(ValidationError, "another location"):
+            self.register(folder="device2")
+        artifact.refresh_from_db()
+        self.assertEqual(artifact.file.name, "model_weights/device1/lstm_ae/v1/weights.bin")
 
     def test_registered_weights_cannot_be_replaced_with_different_bytes(self):
         artifact = self.register()
@@ -168,9 +180,11 @@ class ModelArtifactTests(TestCase):
         source = self.root / "checkpoint"
         source.write_bytes(self.content)
         output = StringIO()
-        call_command("register_model_weights", str(self.version.pk), str(source), stdout=output)
+        with self.assertRaises(CommandError):
+            call_command("register_model_weights", str(self.version.pk), str(source), stdout=output)
+        call_command("register_model_weights", str(self.version.pk), str(source), device_folder="device1", stdout=output)
         self.assertIn(
-            f"model_weights/{self.version.device_type_id}/lstm_ae/v1/weights.bin", output.getvalue(),
+            "model_weights/device1/lstm_ae/v1/weights.bin", output.getvalue(),
         )
         self.assertNotIn("SHA256", output.getvalue())
         with self.assertRaises(CommandError):

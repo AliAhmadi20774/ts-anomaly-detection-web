@@ -15,11 +15,14 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument("model_version", type=UUID)
         parser.add_argument("file", type=Path)
+        parser.add_argument("--device-folder", help="Storage folder only, for example device1; required for a new file.")
 
     def handle(self, *args, **options):
         try:
             with options["file"].open("rb") as source:
-                artifact = register_weights(options["model_version"], File(source))
+                artifact = register_weights(
+                    options["model_version"], File(source), device_folder=options["device_folder"],
+                )
         except ModelVersion.DoesNotExist as error:
             raise CommandError("Model version was not found.") from error
         except (OSError, ValidationError) as error:
