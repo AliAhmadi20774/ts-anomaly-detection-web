@@ -11,17 +11,17 @@ device field on model versions. Version numbers remain unique per algorithm.
 Register a file for an existing model version:
 
 ```powershell
-New-Item -ItemType Directory -Force ./models/device1/lstm_ae/v1
-if (Test-Path ./models/device1/lstm_ae/v1/weights.bin) { throw "File already exists; choose a new version." }
-Copy-Item -LiteralPath ./checkpoint -Destination ./models/device1/lstm_ae/v1/weights.bin
+New-Item -ItemType Directory -Force ./backend/models/device1/lstm_ae/v1
+if (Test-Path ./backend/models/device1/lstm_ae/v1/weights.bin) { throw "File already exists; choose a new version." }
+Copy-Item -LiteralPath ./checkpoint -Destination ./backend/models/device1/lstm_ae/v1/weights.bin
 docker compose up -d backend
-docker compose exec -T backend python manage.py register_model_weights <model-version-uuid> /app/media/model_weights/device1/lstm_ae/v1/weights.bin --device-folder device1
+docker compose exec -T backend python manage.py register_model_weights <model-version-uuid> /app/models/device1/lstm_ae/v1/weights.bin --device-folder device1
 ```
 
 The command copies bytes into private storage without deserializing checkpoints.
 Each version gets its own file under
-`model_weights/<device-folder>/<algorithm-key>/v<version>/weights.bin`.
-For example, `model_weights/device1/lstm_ae/v1/weights.bin`. Choose a distinct
+`<device-folder>/<algorithm-key>/v<version>/weights.bin` relative to the models root.
+For example, `device1/lstm_ae/v1/weights.bin`. Choose a distinct
 folder for each device; the folder does not need to exist in the device table.
 Folder names accept 1-64 letters, digits, underscores or hyphens, without path
 separators. `--device-folder` is required for new files; it can be omitted when
@@ -38,13 +38,16 @@ conflicting version numbers must be resolved before applying it. Database
 migrations do not move stored files; an existing file path can be changed after
 copying and verifying its bytes in the new directory.
 
-Docker Compose bind-mounts the project's `./models` directory at
-`/app/media/model_weights`. `MEDIA_ROOT` remains `/app/media`, so database paths
-such as `model_weights/device1/lstm_ae/v1/weights.bin` do not change. The host file
-is `models/device1/lstm_ae/v1/weights.bin`. See [the storage walkthrough](../../models/README.md).
-Local execution without Docker still uses `backend/media` by default; override
-`DJANGO_MEDIA_ROOT` to choose its storage root. No public media route or model
+Docker Compose bind-mounts the project's `./backend/models` directory at `/app/models`.
+`MEDIA_ROOT` points to `/app/models`, so database paths such as
+`device1/lstm_ae/v1/weights.bin` match the layout within the local models folder.
+The host file is `backend/models/device1/lstm_ae/v1/weights.bin` and the container file is
+`/app/models/device1/lstm_ae/v1/weights.bin`. See [the storage walkthrough](../models/README.md).
+Local execution without Docker also uses the backend's `models` directory by
+default; override `DJANGO_MEDIA_ROOT` to choose its storage root. No public media route or model
 API is provided in this step. Back up the database and model folder together.
+Migration 0008 updates old `model_weights/` references to this root without
+moving files or adding database relationships.
 
 ## Files on other disks or network shares
 
@@ -54,7 +57,7 @@ letter or UNC path alone is not accessible inside it. Registering a mounted
 source still copies the file into the configured private storage.
 
 The destination can also be a mounted network filesystem: mount it at
-`/app/media/model_weights` instead of the project's `./models` folder (or configure
+`/app/models` instead of the project's `./backend/models` folder (or configure
 `DJANGO_MEDIA_ROOT` to its container root). The backend needs read/write permissions. Database file
 references stay relative to that storage root. Object storage or direct HTTP
 links require a separate Django storage backend; they are not configured here.

@@ -1,7 +1,8 @@
 FROM python:3.13-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    DJANGO_MEDIA_ROOT=/app/models
 
 WORKDIR /app
 
@@ -19,7 +20,7 @@ COPY accounts/ ./accounts/
 COPY algorithms/ ./algorithms/
 COPY dat_imports/ ./dat_imports/
 
-RUN mkdir -p /app/media && chown appuser:appuser /app/media
+RUN mkdir -p /app/models && chown appuser:appuser /app/models
 
 USER appuser
 

@@ -21,7 +21,8 @@ class StorageOnlyMigrationTests(TransactionTestCase):
         # Both schemas have the same non-device fields; remove test versions so
         # the latest schema can be restored even after a deliberate conflict.
         ModelVersion.objects.all().delete()
-        MigrationExecutor(connection).migrate([self.target])
+        executor = MigrationExecutor(connection)
+        executor.migrate(executor.loader.graph.leaf_nodes())
         super().tearDown()
 
     def create_version(self, name, **fields):

@@ -47,7 +47,7 @@ class ModelArtifact(models.Model):
     """Track a private stored weights file independently of model metadata."""
 
     id = models.UUIDField(primary_key=True, default=uuid4, editable=False)
-    file = models.FileField(upload_to="model_weights", max_length=255, unique=True)
+    file = models.FileField(max_length=255, unique=True)
     size_bytes = models.PositiveBigIntegerField(validators=[MinValueValidator(1)])
 
     class Meta:

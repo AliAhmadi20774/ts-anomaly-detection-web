@@ -46,7 +46,7 @@ def register_weights(model_version_id, source: File, *, device_folder: str | Non
             version = ModelVersion.objects.select_for_update().get(pk=model_version_id)
             version.full_clean()
             destination = (
-                f"model_weights/{device_folder}/{version.algorithm.key}/v{version.version}/weights.bin"
+                f"{device_folder}/{version.algorithm.key}/v{version.version}/weights.bin"
                 if device_folder is not None else None
             )
             if version.weights_id:

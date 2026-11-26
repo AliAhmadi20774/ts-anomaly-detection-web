@@ -87,7 +87,7 @@ class ModelArtifactTests(TestCase):
         with self.assertRaisesMessage(ValidationError, "another location"):
             self.register(folder="device2")
         artifact.refresh_from_db()
-        self.assertEqual(artifact.file.name, "model_weights/device1/lstm_ae/v1/weights.bin")
+        self.assertEqual(artifact.file.name, "device1/lstm_ae/v1/weights.bin")
 
     def test_registered_weights_cannot_be_replaced_with_different_bytes(self):
         artifact = self.register()
@@ -165,7 +165,7 @@ class ModelArtifactTests(TestCase):
     def test_database_validates_size_and_unique_storage_path(self):
         artifact = self.register()
         for fields in [
-            {"file": "model_weights/other.bin", "size_bytes": 0},
+            {"file": "other.bin", "size_bytes": 0},
             {"file": artifact.file.name, "size_bytes": artifact.size_bytes},
             {"file": " ", "size_bytes": 1},
         ]:
@@ -184,7 +184,7 @@ class ModelArtifactTests(TestCase):
             call_command("register_model_weights", str(self.version.pk), str(source), stdout=output)
         call_command("register_model_weights", str(self.version.pk), str(source), device_folder="device1", stdout=output)
         self.assertIn(
-            "model_weights/device1/lstm_ae/v1/weights.bin", output.getvalue(),
+            "device1/lstm_ae/v1/weights.bin", output.getvalue(),
         )
         self.assertNotIn("SHA256", output.getvalue())
         with self.assertRaises(CommandError):

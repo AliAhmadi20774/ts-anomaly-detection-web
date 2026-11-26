@@ -6,7 +6,7 @@ services:
       - "127.0.0.1:8000:8000"
     environment:
       DJANGO_DEBUG: ${DJANGO_DEBUG:-true}
-      DJANGO_MEDIA_ROOT: /app/media
+      DJANGO_MEDIA_ROOT: /app/models
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-}
       DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,backend}
       PGHOST: ${PGHOST:-shared-postgres}
@@ -17,8 +17,8 @@ services:
       PGSSLMODE: ${PGSSLMODE:-prefer}
     volumes:
       - type: bind
-        source: ./models
-        target: /app/media/model_weights
+        source: ./backend/models
+        target: /app/models
         bind:
           create_host_path: false
     networks:

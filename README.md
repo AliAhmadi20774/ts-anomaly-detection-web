@@ -21,11 +21,11 @@ Development proceeds in small, explained steps, keeping the code simple, readabl
 
 ## Model files
 
-Trained weights are organized in `models/<device-folder>/<algorithm>/v<version>/weights.bin`.
-Docker Compose mounts `./models` at `/app/media/model_weights` in the backend,
+Trained weights are organized in `backend/models/<device-folder>/<algorithm>/v<version>/weights.bin`.
+Docker Compose mounts `./backend/models` at `/app/models` in the backend,
 so local files are visible inside Docker. The database keeps relative file paths
 and model metadata; device names are used for folder organization only.
 
-See [the model storage walkthrough](models/README.md) for the folder layout,
+See [the model storage walkthrough](backend/models/README.md) for the folder layout,
 the local-to-container mapping and registration steps. Model binaries are ignored
 by Git and should be backed up together with the database.

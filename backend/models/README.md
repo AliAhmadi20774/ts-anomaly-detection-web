@@ -1,10 +1,10 @@
 # Local model files and Docker
 
-This directory is the model storage folder for this checkout. Docker Compose
-mounts it into the backend container at `/app/media/model_weights`.
+The project's `backend/models` directory stores its trained model files. Docker Compose
+mounts it into the backend container at `/app/models`.
 
 ```text
-models/
+backend/models/
   device1/
     lstm_ae/
       v1/
@@ -24,9 +24,9 @@ weights for the same algorithm.
 
 | Location | Example |
 | --- | --- |
-| Project file | `models/device1/lstm_ae/v1/weights.bin` |
-| File inside Docker | `/app/media/model_weights/device1/lstm_ae/v1/weights.bin` |
-| Database `ModelArtifact.file` | `model_weights/device1/lstm_ae/v1/weights.bin` |
+| Project file | `backend/models/device1/lstm_ae/v1/weights.bin` |
+| File inside Docker | `/app/models/device1/lstm_ae/v1/weights.bin` |
+| Database `ModelArtifact.file` | `device1/lstm_ae/v1/weights.bin` |
 
 Compose uses a **bind mount**: the container sees this host directory directly.
 The mapping is configured in `compose.yaml`. The Dockerfile builds the program;
@@ -46,15 +46,15 @@ PowerShell commands from the project root:
 
 ```powershell
 # 1. Put the trained weights in their final local folder.
-New-Item -ItemType Directory -Force ./models/device1/lstm_ae/v1
-if (Test-Path ./models/device1/lstm_ae/v1/weights.bin) { throw "File already exists; choose a new version." }
-Copy-Item -LiteralPath ./trained-model.pt -Destination ./models/device1/lstm_ae/v1/weights.bin
+New-Item -ItemType Directory -Force ./backend/models/device1/lstm_ae/v1
+if (Test-Path ./backend/models/device1/lstm_ae/v1/weights.bin) { throw "File already exists; choose a new version." }
+Copy-Item -LiteralPath ./trained-model.pt -Destination ./backend/models/device1/lstm_ae/v1/weights.bin
 
 # 2. Start/recreate the backend with the Compose mount.
 docker compose up -d backend
 
 # 3. Register the file with the UUID of the metadata record created above.
-docker compose exec backend python manage.py register_model_weights "MODEL_VERSION_ID" /app/media/model_weights/device1/lstm_ae/v1/weights.bin --device-folder device1
+docker compose exec backend python manage.py register_model_weights "MODEL_VERSION_ID" /app/models/device1/lstm_ae/v1/weights.bin --device-folder device1
 ```
 
 The registration command reads and checks the file without loading or executing
@@ -75,3 +75,9 @@ byte-for-byte with the previously registered Docker file before switching mounts
 
 The previous Docker named volume `ts-anomaly-detection-web_model_artifacts` is
 retained as a backup from before this mapping; the backend now uses this folder.
+
+`/app/models` mirrors the project's `backend/models` folder. Django's internal setting
+`MEDIA_ROOT` points to that directory; the folder does not have to be named
+`media`. Without Docker, the default storage root is also the project's `backend/models`
+directory. Migration 0008 removes the old `model_weights/` prefix from database
+file references; it does not move or change the local weights.
