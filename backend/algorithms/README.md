@@ -51,12 +51,48 @@ numbers and invalid parameters are rejected. Call `full_clean()` before saving
 metadata (the weight-registration service already does this). The database also
 rejects non-object JSON values; it allows SQL `NULL` for unconfigured versions.
 
-This change stores and validates metadata only: there is no preprocessing
-executor, inference endpoint or training operation yet. A declaration is not
+The metadata validator does not execute a pipeline: there is no configured
+pipeline executor, inference endpoint or training operation yet. A declaration is not
 proof that the weights match it. Schema 1 does not express legacy section
 selection, zero-padding, imputation or custom feature extraction; these need
 explicit step definitions before a complete recipe using them can be registered.
 Stride and batch size belong to future analysis-run settings, not this field.
+
+## Windowing primitive
+
+`algorithms.windowing.iter_windows` is a standalone, standard-library-only
+function. It has no Django, legacy-code, NumPy or model-framework dependency.
+Pass one time series as rows in `[sample, feature]` order; the caller is
+responsible for feature selection and order. For a scalar signal, wrap each value
+in a one-element row. Different serials or sections require separate calls.
+
+```python
+from algorithms.windowing import iter_windows
+
+windows = list(iter_windows(
+    [[value] for value in range(1000)],
+    window_size=50, stride=25, tail="drop", offset=0,
+))
+# 39 windows: [0, 50), [25, 75), ..., [950, 1000)
+# windows[0].values contains 50 rows, each with one feature.
+```
+
+Each immutable `SampleWindow` has `start`, exclusive `end` and `values`.
+Bounds refer to the supplied sample index domain plus `offset`; the function
+does not map resampled indices back to raw timestamps. Pass a section's sample
+offset when its indices should be absolute within the same sample domain.
+
+Input is validated and snapshotted once before the iterator is returned.
+Overlapping windows reuse immutable feature rows without altering source data.
+The window iterator avoids materializing all windows at once. Values are finite
+Python floats; empty/ragged feature rows, nonnumeric values and non-finite
+numbers are rejected. Window size and stride must be positive integers.
+
+With `drop`, incomplete end data is excluded without padding. With `reject`,
+non-empty input must have at least one full window and its last complete window
+must reach the end; stride gaps between windows remain intentional. Empty input
+yields no windows for either policy. No section boundaries, sampling frequency,
+normalization or architecture assumptions are embedded in this function.
 
 Register a file for an existing model version:
 
