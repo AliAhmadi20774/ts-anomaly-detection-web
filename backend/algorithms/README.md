@@ -11,8 +11,11 @@ device field on model versions. Version numbers remain unique per algorithm.
 Register a file for an existing model version:
 
 ```powershell
-docker compose cp ./checkpoint backend:/tmp/checkpoint
-docker compose exec -T backend python manage.py register_model_weights <model-version-uuid> /tmp/checkpoint --device-folder device1
+New-Item -ItemType Directory -Force ./models/device1/lstm_ae/v1
+if (Test-Path ./models/device1/lstm_ae/v1/weights.bin) { throw "File already exists; choose a new version." }
+Copy-Item -LiteralPath ./checkpoint -Destination ./models/device1/lstm_ae/v1/weights.bin
+docker compose up -d backend
+docker compose exec -T backend python manage.py register_model_weights <model-version-uuid> /app/media/model_weights/device1/lstm_ae/v1/weights.bin --device-folder device1
 ```
 
 The command copies bytes into private storage without deserializing checkpoints.
@@ -35,10 +38,13 @@ conflicting version numbers must be resolved before applying it. Database
 migrations do not move stored files; an existing file path can be changed after
 copying and verifying its bytes in the new directory.
 
-Docker Compose persists the files in the `model_artifacts` named volume mounted
-at `/app/media`. Local execution uses `backend/media` by default; override it with
-`DJANGO_MEDIA_ROOT`. No public media route or model API is provided in this step.
-Back up the database and the artifact volume together.
+Docker Compose bind-mounts the project's `./models` directory at
+`/app/media/model_weights`. `MEDIA_ROOT` remains `/app/media`, so database paths
+such as `model_weights/device1/lstm_ae/v1/weights.bin` do not change. The host file
+is `models/device1/lstm_ae/v1/weights.bin`. See [the storage walkthrough](../../models/README.md).
+Local execution without Docker still uses `backend/media` by default; override
+`DJANGO_MEDIA_ROOT` to choose its storage root. No public media route or model
+API is provided in this step. Back up the database and model folder together.
 
 ## Files on other disks or network shares
 
@@ -48,8 +54,8 @@ letter or UNC path alone is not accessible inside it. Registering a mounted
 source still copies the file into the configured private storage.
 
 The destination can also be a mounted network filesystem: mount it at
-`/app/media` instead of the default named volume (or configure `DJANGO_MEDIA_ROOT`
-to its container path). The backend needs read/write permissions. Database file
+`/app/media/model_weights` instead of the project's `./models` folder (or configure
+`DJANGO_MEDIA_ROOT` to its container root). The backend needs read/write permissions. Database file
 references stay relative to that storage root. Object storage or direct HTTP
 links require a separate Django storage backend; they are not configured here.
 

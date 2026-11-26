@@ -1,0 +1,4 @@
+# Model weights live on disk and are mounted into Docker; version code and docs.
+*
+!.gitignore
+!README.md

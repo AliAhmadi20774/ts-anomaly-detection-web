@@ -16,7 +16,11 @@ services:
       PGPASSWORD: ${PGPASSWORD:?Set PGPASSWORD in .env}
       PGSSLMODE: ${PGSSLMODE:-prefer}
     volumes:
-      - model_artifacts:/app/media
+      - type: bind
+        source: ./models
+        target: /app/media/model_weights
+        bind:
+          create_host_path: false
     networks:
       - default
       - database
@@ -60,6 +64,3 @@ networks:
   database:
     external: true
     name: ${POSTGRES_NETWORK:-shared-postgres-network}
-
-volumes:
-  model_artifacts:
