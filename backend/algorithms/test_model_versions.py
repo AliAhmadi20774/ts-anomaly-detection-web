@@ -6,17 +6,20 @@ from django.db.models.deletion import ProtectedError
 from django.test import TestCase
 
 from algorithms.models import Algorithm, ModelVersion
+from devices.models import DeviceType
 
 
 class ModelVersionTests(TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.algorithm = Algorithm.objects.get(key="lstm_ae")
+        cls.device_type = DeviceType.objects.create(name="device1")
 
     def make_version(self, **overrides):
         return ModelVersion(
             **{
                 "algorithm": self.algorithm,
+                "device_type": self.device_type,
                 "version": 1,
                 "architecture_params": {"hidden_size": 300, "num_layers": 1, "dropout": 0.2},
                 "input_spec": {"features": ["pressure", "temperature"], "sample_rate_hz": 1000},
@@ -41,10 +44,10 @@ class ModelVersionTests(TestCase):
                 self.assertIsInstance(stored.pk, UUID)
                 self.assertEqual(stored.architecture_params, model.architecture_params)
                 self.assertEqual(stored.input_spec, model.input_spec)
-        self.assertEqual(str(lstm), "lstm_ae v1")
+        self.assertEqual(str(lstm), "device1 / lstm_ae v1")
         self.assertEqual(self.algorithm.model_versions.get(), lstm)
 
-    def test_version_number_is_unique_per_algorithm(self):
+    def test_version_number_is_unique_per_device_and_algorithm(self):
         self.make_version().save()
         duplicate = self.make_version()
         with self.assertRaises(ValidationError):
@@ -54,6 +57,19 @@ class ModelVersionTests(TestCase):
         next_version = self.make_version(version=2)
         next_version.full_clean()
         next_version.save()
+        other_device = self.make_version(device_type=DeviceType.objects.create(name="device2"))
+        other_device.full_clean()
+        other_device.save()
+
+    def test_device_type_is_required_and_protected(self):
+        invalid = self.make_version(device_type=None)
+        with self.assertRaises(ValidationError):
+            invalid.full_clean()
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            invalid.save()
+        self.make_version().save()
+        with self.assertRaises(ProtectedError):
+            self.device_type.delete()
 
     def test_empty_architecture_object_is_allowed(self):
         model = self.make_version(architecture_params={})

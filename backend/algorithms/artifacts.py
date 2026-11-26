@@ -27,8 +27,8 @@ def _ensure_file(artifact, snapshot, *, allow_create):
 def register_weights(model_version_id, source: File) -> ModelArtifact:
     """Copy weights without hashing, deserializing or executing the checkpoint.
 
-    Each model version has its own storage path. An existing file is compared
-    directly with the source on retries; registered weights cannot be replaced.
+    Device types, algorithms and versions have separate storage directories.
+    An existing file is compared directly on retries; weights cannot be replaced.
     """
     with SpooledTemporaryFile(max_size=16 * 1024 * 1024) as snapshot:
         size = 0
@@ -47,7 +47,7 @@ def register_weights(model_version_id, source: File) -> ModelArtifact:
                 _ensure_file(artifact, snapshot, allow_create=False)
             else:
                 artifact = ModelArtifact(
-                    file=f"model_weights/{version.pk}/weights.bin",
+                    file=f"model_weights/{version.device_type_id}/{version.algorithm.key}/v{version.version}/weights.bin",
                     size_bytes=size,
                 )
                 artifact.full_clean()

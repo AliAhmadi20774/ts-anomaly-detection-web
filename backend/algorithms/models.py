@@ -66,6 +66,7 @@ class ModelVersion(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid4, editable=False)
     algorithm = models.ForeignKey(Algorithm, on_delete=models.PROTECT, related_name="model_versions")
+    device_type = models.ForeignKey("devices.DeviceType", on_delete=models.PROTECT, related_name="model_versions")
     version = models.PositiveIntegerField(validators=[MinValueValidator(1)])
     architecture_params = models.JSONField(default=dict, blank=True, validators=[JsonObjectValidator()])
     input_spec = models.JSONField(validators=[InputSpecValidator()])
@@ -75,9 +76,11 @@ class ModelVersion(models.Model):
 
     class Meta:
         db_table = "model_versions"
-        ordering = ["algorithm", "version"]
+        ordering = ["device_type", "algorithm", "version"]
         constraints = [
-            models.UniqueConstraint(fields=["algorithm", "version"], name="model_versions_algorithm_version_unique"),
+            models.UniqueConstraint(
+                fields=["device_type", "algorithm", "version"], name="model_versions_device_algorithm_version_unique",
+            ),
             models.CheckConstraint(condition=models.Q(version__gt=0), name="model_versions_version_positive"),
             models.CheckConstraint(
                 condition=Exact(
@@ -105,4 +108,4 @@ class ModelVersion(models.Model):
             raise ValidationError({"architecture_params": error.messages}) from error
 
     def __str__(self) -> str:
-        return f"{self.algorithm.key} v{self.version}"
+        return f"{self.device_type} / {self.algorithm.key} v{self.version}"

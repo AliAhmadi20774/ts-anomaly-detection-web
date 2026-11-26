@@ -14,6 +14,7 @@ from django.test import TestCase, override_settings
 
 from algorithms.artifacts import register_weights
 from algorithms.models import Algorithm, ModelArtifact, ModelVersion
+from devices.models import DeviceType
 
 
 class ModelArtifactTests(TestCase):
@@ -26,6 +27,7 @@ class ModelArtifactTests(TestCase):
         self.addCleanup(settings.disable)
         self.version = ModelVersion.objects.create(
             algorithm=Algorithm.objects.get(key="lstm_ae"), version=1,
+            device_type=DeviceType.objects.create(name="device1"),
             architecture_params={"hidden_size": 300, "num_layers": 1, "dropout": 0.2},
             input_spec={"features": ["signal1"], "sample_rate_hz": 1000},
         )
@@ -52,6 +54,7 @@ class ModelArtifactTests(TestCase):
         self.assertEqual(self.register().pk, first.pk)
         other = ModelVersion.objects.create(
             algorithm=self.version.algorithm, version=2,
+            device_type=self.version.device_type,
             architecture_params={}, input_spec={"features": ["signal1"]},
         )
         second = self.register(version=other)
@@ -59,6 +62,20 @@ class ModelArtifactTests(TestCase):
         self.assertNotEqual(second.file.name, first.file.name)
         self.assertEqual(ModelArtifact.objects.count(), 2)
         self.assertEqual(len([path for path in self.root.rglob("*") if path.is_file()]), 2)
+
+    def test_devices_with_identical_names_have_separate_directories(self):
+        first = self.register()
+        other = ModelVersion.objects.create(
+            algorithm=self.version.algorithm, version=1,
+            device_type=DeviceType.objects.create(name="device1"),
+            architecture_params={}, input_spec={"features": ["signal1"]},
+        )
+        second = self.register(version=other, content=b"another device checkpoint")
+        self.assertNotEqual(Path(first.file.name).parent.parent.parent, Path(second.file.name).parent.parent.parent)
+        with first.file.open("rb") as stored:
+            self.assertEqual(stored.read(), self.content)
+        with second.file.open("rb") as stored:
+            self.assertEqual(stored.read(), b"another device checkpoint")
 
     def test_registered_weights_cannot_be_replaced_with_different_bytes(self):
         artifact = self.register()
@@ -152,7 +169,9 @@ class ModelArtifactTests(TestCase):
         source.write_bytes(self.content)
         output = StringIO()
         call_command("register_model_weights", str(self.version.pk), str(source), stdout=output)
-        self.assertIn(f"model_weights/{self.version.pk}/weights.bin", output.getvalue())
+        self.assertIn(
+            f"model_weights/{self.version.device_type_id}/lstm_ae/v1/weights.bin", output.getvalue(),
+        )
         self.assertNotIn("SHA256", output.getvalue())
         with self.assertRaises(CommandError):
             call_command("register_model_weights", str(self.version.pk), str(self.root / "missing"))
