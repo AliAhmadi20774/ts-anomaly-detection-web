@@ -5,7 +5,7 @@ from django.core.validators import MinValueValidator, RegexValidator
 from django.db import models
 from django.db.models.lookups import Exact
 
-from algorithms.validators import InputSpecValidator, JsonObjectValidator
+from algorithms.validators import InputSpecValidator, JsonObjectValidator, PreprocessingValidator
 
 
 class Algorithm(models.Model):
@@ -69,6 +69,7 @@ class ModelVersion(models.Model):
     version = models.PositiveIntegerField(validators=[MinValueValidator(1)])
     architecture_params = models.JSONField(default=dict, blank=True, validators=[JsonObjectValidator()])
     input_spec = models.JSONField(validators=[InputSpecValidator()])
+    preprocessing = models.JSONField(default=None, null=True, blank=True, validators=[PreprocessingValidator()])
     weights = models.ForeignKey(
         ModelArtifact, on_delete=models.PROTECT, null=True, blank=True, related_name="model_versions",
     )
@@ -93,6 +94,13 @@ class ModelVersion(models.Model):
                 ),
                 name="model_versions_input_object",
             ),
+            models.CheckConstraint(
+                condition=models.Q(preprocessing__isnull=True) | Exact(
+                    models.Func("preprocessing", function="jsonb_typeof", output_field=models.CharField()),
+                    models.Value("object"),
+                ),
+                name="model_versions_preprocessing_object",
+            ),
         ]
 
     def clean(self):
@@ -103,6 +111,13 @@ class ModelVersion(models.Model):
             JsonObjectValidator()(self.architecture_params)
         except ValidationError as error:
             raise ValidationError({"architecture_params": error.messages}) from error
+        try:
+            validator = PreprocessingValidator()
+            # Validate empty non-None values too: blank=True skips field validation.
+            validator(self.preprocessing)
+            validator.validate_input(self.preprocessing, self.input_spec)
+        except ValidationError as error:
+            raise ValidationError({"preprocessing": error.messages}) from error
 
     def __str__(self) -> str:
         return f"{self.algorithm.key} v{self.version}"

@@ -8,6 +8,56 @@ validate the model's neural-network architecture.
 Device names organize folders only; there is no device relationship or extra
 device field on model versions. Version numbers remain unique per algorithm.
 
+## Preprocessing metadata
+
+`ModelVersion.preprocessing` is an optional, validated JSON declaration. SQL
+`NULL` means **not configured**, independently of an explicit normalization
+method of `none`. Existing versions remain unconfigured after migration 0009;
+no training settings are inferred from the legacy inference code.
+
+Example declaration (illustrative, not an installed legacy training recipe):
+
+```json
+{
+  "schema_version": 1,
+  "steps": [
+    {"type": "resample", "method": "mean"},
+    {"type": "normalize", "method": "none"},
+    {"type": "window", "size": 50, "tail": "drop"}
+  ]
+}
+```
+
+Schema 1 accepts these explicit step declarations:
+
+- `resample`: `method` is `mean`, `min` or `max`. The target sampling rate comes
+  from `input_spec.sample_rate_hz`; do not duplicate it in the step. Resampling
+  must precede windowing.
+- `normalize`: `method` is `none`, `standardize` or `minmax`. `none` has no fitted
+  parameters. `standardize` requires fitted `mean` and strictly positive `scale`
+  vectors, defining `(x - mean) / scale`. `minmax` requires fitted non-negative
+  `scale` and finite `offset` vectors, defining `x * scale + offset`, plus an
+  increasing two-number target `range` and explicit boolean `clip`. If clipping
+  is enabled, clip the transformed values to that range. These parameters come
+  from external training; this step never fits a scaler on new measurements.
+- `window`: a positive integer `size` and explicit `tail` policy, `drop` or
+  `reject`. `drop` excludes incomplete windows; `reject` declares that incomplete
+  windows must produce an error. There can be at most one windowing step.
+
+The ordered `steps` list preserves operation order, including normalization
+before or after windowing. Fitted vectors must contain one value per feature in
+`input_spec.features` order. Unknown keys, unknown versions/steps, non-finite
+numbers and invalid parameters are rejected. Call `full_clean()` before saving
+metadata (the weight-registration service already does this). The database also
+rejects non-object JSON values; it allows SQL `NULL` for unconfigured versions.
+
+This change stores and validates metadata only: there is no preprocessing
+executor, inference endpoint or training operation yet. A declaration is not
+proof that the weights match it. Schema 1 does not express legacy section
+selection, zero-padding, imputation or custom feature extraction; these need
+explicit step definitions before a complete recipe using them can be registered.
+Stride and batch size belong to future analysis-run settings, not this field.
+
 Register a file for an existing model version:
 
 ```powershell

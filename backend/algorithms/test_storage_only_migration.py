@@ -2,9 +2,6 @@ from django.db import IntegrityError, connection
 from django.db.migrations.executor import MigrationExecutor
 from django.test import TransactionTestCase
 
-from algorithms.models import ModelVersion
-
-
 class StorageOnlyMigrationTests(TransactionTestCase):
     previous = ("algorithms", "0006_require_model_version_device")
     target = ("algorithms", "0007_device_folders_only")
@@ -18,10 +15,10 @@ class StorageOnlyMigrationTests(TransactionTestCase):
         )
 
     def tearDown(self):
-        # Both schemas have the same non-device fields; remove test versions so
-        # the latest schema can be restored even after a deliberate conflict.
-        ModelVersion.objects.all().delete()
         executor = MigrationExecutor(connection)
+        # Clean up using the applied schema, not fields from future migrations.
+        apps = executor.loader.project_state(list(executor.loader.applied_migrations)).apps
+        apps.get_model("algorithms", "ModelVersion").objects.all().delete()
         executor.migrate(executor.loader.graph.leaf_nodes())
         super().tearDown()
 
@@ -37,8 +34,10 @@ class StorageOnlyMigrationTests(TransactionTestCase):
             file="model_weights/device1/lstm_ae/v1/weights.bin", size_bytes=123,
         )
         version = self.create_version("device1", weights=artifact)
-        MigrationExecutor(connection).migrate([self.target])
-        stored = ModelVersion.objects.get(pk=version.pk)
+        executor = MigrationExecutor(connection)
+        executor.migrate([self.target])
+        target_model = executor.loader.project_state([self.target]).apps.get_model("algorithms", "ModelVersion")
+        stored = target_model.objects.get(pk=version.pk)
         self.assertEqual(stored.weights_id, artifact.pk)
         self.assertEqual(stored.weights.file.name, artifact.file.name)
         self.assertEqual(stored.architecture_params, {"hidden_size": 300})

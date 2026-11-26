@@ -5,7 +5,7 @@ from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
 from django.test import TransactionTestCase, override_settings
 
-from algorithms.models import ModelArtifact, ModelVersion
+from algorithms.models import ModelArtifact
 
 
 class ModelsRootMigrationTests(TransactionTestCase):
@@ -18,9 +18,10 @@ class ModelsRootMigrationTests(TransactionTestCase):
         self.apps = executor.loader.project_state([self.previous]).apps
 
     def tearDown(self):
-        ModelVersion.objects.all().delete()
-        ModelArtifact.objects.all().delete()
         executor = MigrationExecutor(connection)
+        apps = executor.loader.project_state(list(executor.loader.applied_migrations)).apps
+        apps.get_model("algorithms", "ModelVersion").objects.all().delete()
+        apps.get_model("algorithms", "ModelArtifact").objects.all().delete()
         executor.migrate(executor.loader.graph.leaf_nodes())
         super().tearDown()
 
@@ -40,10 +41,12 @@ class ModelsRootMigrationTests(TransactionTestCase):
             path = Path(root) / relative
             path.parent.mkdir(parents=True)
             path.write_bytes(b"model")
-            MigrationExecutor(connection).migrate([self.target])
+            executor = MigrationExecutor(connection)
+            executor.migrate([self.target])
             stored = ModelArtifact.objects.get(pk=artifact.pk)
             self.assertEqual(stored.file.name, relative)
-            self.assertEqual(ModelVersion.objects.get(pk=version.pk).weights_id, artifact.pk)
+            target_model = executor.loader.project_state([self.target]).apps.get_model("algorithms", "ModelVersion")
+            self.assertEqual(target_model.objects.get(pk=version.pk).weights_id, artifact.pk)
             with stored.file.open("rb") as weights:
                 self.assertEqual(weights.read(), b"model")
             self.assertEqual(list(Path(root).rglob("*.bin")), [path])
