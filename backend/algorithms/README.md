@@ -188,18 +188,18 @@ loader; other algorithms fail explicitly until their loaders are registered.
 ## Analyzing a stored test
 
 `algorithms.inference.analyze_test` is the permanent backend service connecting
-stored signals, preprocessing, model loading and batched inference:
+stored signals, preprocessing, model loading, batched inference and decisions:
 
 ```python
 from algorithms.inference import analyze_test
 
 result = analyze_test(
     test_run_id, model_version_id,
-    stride=25, batch_size=100, reconstruction_repeats=10,
+    stride=25, threshold=0.35, batch_size=100, reconstruction_repeats=10,
     start_sample=0, end_sample=1000,
 )
 for window in result.windows:
-    print(window.start_time_s, window.end_time_s, window.score)
+    print(window.start_time_s, window.end_time_s, window.score, window.status)
 ```
 
 The caller explicitly selects the test and model. Signals must match
@@ -218,15 +218,23 @@ their boundaries. Out-of-range selections and ranges without a complete model
 window are rejected. Result bounds are half-open original sample indices and
 relative seconds, including when resampling is configured.
 
+`threshold` defaults to `0.35` and can be set for each call. It must be a finite,
+non-negative number; booleans and numeric strings are rejected. A score strictly
+greater than the threshold receives `status="anomaly"`; equality or a smaller
+score receives `status="normal"`. Zero is a valid threshold. The applied value
+is recorded in `AnalysisResult.threshold`, not in the database or architecture.
+Changing this decision threshold does not change the MSE scoring calculation.
+
 The runtime must implement `ReconstructionRuntime.predict`; the smaller
 `ModelRuntime` contract remains sufficient for loading-only algorithms.
 Currently LSTM-AE implements reconstruction-based analysis. The model is loaded
 once, batches execute on its device, and scalar scores are copied to CPU once
 per batch. `AnalysisResult` records IDs, ordered features, source rate, stride,
-batch size, repeat count and immutable window scores. Source arrays and returned
-scores still occupy CPU memory; batching bounds inference tensor memory.
+batch size, repeat count, threshold and immutable scored/labeled windows.
+Source arrays and returned scores still occupy CPU memory; batching bounds
+inference tensor memory.
 
-This service does not create records, apply thresholds or expose an HTTP/UI
+This service does not create records or expose an HTTP/UI
 entry. Its tests exercise the full database/storage/LSTM path on a disposable
 database. The development model uses `current_a` (current in amperes), matching
 the existing synthetic `test1` traces. These already contain 22,528 samples at

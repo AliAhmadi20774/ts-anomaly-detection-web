@@ -92,6 +92,26 @@ class TestInferenceTests(TestCase):
         self.assertTrue(all(type(window.score) is float for window in result.windows))
         self.assertEqual((result.test_run_id, result.model_version_id), (self.test_run.pk, self.version.pk))
         self.assertEqual((result.stride, result.batch_size, result.reconstruction_repeats), (1, 2, 3))
+        self.assertEqual(result.threshold, 0.35)
+        self.assertTrue(all(window.status == "anomaly" for window in result.windows))
+
+    def test_custom_threshold_includes_equality_in_normal_and_does_not_change_scores(self):
+        with patch("algorithms.inference.load_model", return_value=self.runtime):
+            result = self.analyze(threshold=328.25)
+            higher = self.analyze(threshold=2000)
+        self.assertEqual(result.threshold, 328.25)
+        self.assertEqual(result.windows[1].score, result.threshold)
+        self.assertEqual([window.status for window in result.windows], ["normal", "normal", "anomaly", "anomaly", "anomaly"])
+        self.assertTrue(all(window.status == "normal" for window in higher.windows))
+        self.assertEqual([window.score for window in result.windows], [window.score for window in higher.windows])
+
+    def test_zero_threshold_accepts_zero_error_and_flags_positive_error(self):
+        prediction = SimpleNamespace(scores=torch.tensor([0., 1.]), reconstruction_repeats=3)
+        with patch("algorithms.inference.load_model", return_value=self.runtime):
+            with patch.object(self.runtime, "predict", return_value=prediction):
+                result = self.analyze(threshold=0, end_sample=3)
+        self.assertEqual([window.status for window in result.windows], ["normal", "anomaly"])
+        self.assertIs(type(result.threshold), float)
 
     def test_section_bounds_are_absolute_and_windows_do_not_cross_them(self):
         with patch("algorithms.inference.load_model", return_value=self.runtime):
@@ -178,6 +198,9 @@ class TestInferenceTests(TestCase):
             {"reconstruction_repeats": False}, {"reconstruction_repeats": 0},
             {"start_sample": -1}, {"start_sample": True}, {"end_sample": False},
             {"start_sample": 2, "end_sample": 2},
+            {"threshold": -1}, {"threshold": True}, {"threshold": False},
+            {"threshold": "0.35"}, {"threshold": None}, {"threshold": float("nan")},
+            {"threshold": float("inf")}, {"threshold": -float("inf")}, {"threshold": 10 ** 1000},
         ):
             with self.subTest(options=options), self.assertNumQueries(0), self.assertRaises(ValidationError):
                 self.analyze(**options)

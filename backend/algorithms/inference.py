@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from itertools import islice
 import math
+from typing import Literal
 from uuid import UUID
 
 from django.core.exceptions import ValidationError
@@ -17,13 +18,14 @@ from devices.models import SignalTrace, TestRun
 
 @dataclass(frozen=True, slots=True)
 class WindowScore:
-    """One window's MSE and half-open bounds in the original test signal."""
+    """One window's MSE, decision and half-open original-sample bounds."""
 
     start_sample: int
     end_sample: int
     start_time_s: float
     end_time_s: float
     score: float
+    status: Literal["normal", "anomaly"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -37,6 +39,7 @@ class AnalysisResult:
     stride: int
     batch_size: int
     reconstruction_repeats: int
+    threshold: float
     windows: tuple[WindowScore, ...]
 
 
@@ -60,10 +63,14 @@ def _read_signals(test_run: TestRun, features: list[str]) -> list[list[float]]:
 
 
 def analyze_test(
-    test_run_id, model_version_id, *, stride: int, batch_size: int = 100,
+    test_run_id, model_version_id, *, stride: int, threshold: float = 0.35, batch_size: int = 100,
     reconstruction_repeats: int = 10, start_sample: int = 0, end_sample: int | None = None,
 ) -> AnalysisResult:
-    """Read a test, preprocess its input signals and score complete windows.
+    """Read a test, preprocess its input signals and classify complete windows.
+
+    A window is anomalous only when its MSE is strictly greater than threshold.
+    Equality is normal. threshold must be finite and non-negative; it is an
+    execution option recorded in the result, not a stored model parameter.
 
     Signal names must match input_spec.features exactly; there are no implicit
     aliases, substitutions, normalization fitting or zero padding. Signals use
@@ -82,10 +89,17 @@ def analyze_test(
 
     Missing database IDs raise DoesNotExist. Invalid inputs/settings raise
     ValidationError. No records, source signals or model files are changed.
-    This service returns scores only; thresholds and result persistence belong
-    to later steps. It is permanent backend code, not a migration script.
+    Results are returned without persistence. This is permanent backend code,
+    not a migration script.
     """
     try:
+        try:
+            valid_threshold = type(threshold) in (int, float) and math.isfinite(threshold) and threshold >= 0
+        except OverflowError:
+            valid_threshold = False
+        if not valid_threshold:
+            raise ValueError("threshold must be a finite, non-negative number.")
+        threshold = float(threshold)
         for name, value in (("stride", stride), ("batch_size", batch_size)):
             if type(value) is not int or value < 1:
                 raise ValueError(f"{name} must be a positive integer.")
@@ -134,12 +148,13 @@ def analyze_test(
                     start_sample=window.start, end_sample=window.end,
                     start_time_s=window.start / test_run.sample_rate_hz,
                     end_time_s=window.end / test_run.sample_rate_hz, score=float(score),
+                    status="anomaly" if score > threshold else "normal",
                 ))
             batch = list(islice(windows, batch_size))
         return AnalysisResult(
             test_run_id=test_run.pk, model_version_id=version.pk, features=tuple(features),
             source_sample_rate_hz=test_run.sample_rate_hz, stride=stride, batch_size=batch_size,
-            reconstruction_repeats=reconstruction_repeats, windows=tuple(results),
+            reconstruction_repeats=reconstruction_repeats, threshold=threshold, windows=tuple(results),
         )
     except ValueError as error:
         raise ValidationError(str(error)) from error
