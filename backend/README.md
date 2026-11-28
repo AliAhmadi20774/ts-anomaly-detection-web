@@ -20,6 +20,7 @@ backend/
     test_preprocessing.py
     test_preprocessing_metadata.py
     test_resampling.py
+    test_runtime_registry.py
     test_storage_only_migration.py
     test_windowing.py
   dat_imports/tests/
@@ -45,6 +46,9 @@ python -m unittest algorithms.tests.test_lstm_loading -v
 
 `test_model_loading.py` covers database metadata, private storage and the
 `check_model_weights` management command as part of the complete Django suite.
+It also exercises a second example algorithm through the same loading service.
+`test_runtime_registry.py` checks the shared loading contract and dispatch using
+standard-library test cases, independently of Django and PyTorch.
 
 For the complete suite, configure `PGHOST`, `PGPORT`, `PGDATABASE`, `PGUSER` and
 `PGPASSWORD` for a disposable PostgreSQL instance, then run from `backend/`:

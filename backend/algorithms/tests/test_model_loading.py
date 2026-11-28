@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from io import BytesIO, StringIO
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -14,7 +15,15 @@ from django.test import TestCase, override_settings
 from algorithms.artifacts import register_weights
 from algorithms.loading import load_model_version
 from algorithms.models import Algorithm, ModelArtifact, ModelVersion
+from algorithms.runtimes.contracts import ModelRuntime
 from algorithms.runtimes.lstm_ae import LSTMArchitecture, LSTMAutoencoder
+from algorithms.runtimes.registry import LoaderRegistry
+
+
+@dataclass(frozen=True)
+class ExampleRuntime:
+    algorithm_key: str
+    features: tuple[str, ...]
 
 
 class ModelLoadingTests(TestCase):
@@ -43,6 +52,8 @@ class ModelLoadingTests(TestCase):
         artifact = self.register()
         metadata = ModelVersion.objects.values().get(pk=self.version.pk)
         model = load_model_version(self.version.pk)
+        self.assertIsInstance(model, ModelRuntime)
+        self.assertEqual(model.algorithm_key, "lstm_ae")
         for name, tensor in model.state_dict().items():
             torch.testing.assert_close(tensor, self.original.state_dict()[name], rtol=0, atol=0)
         self.assertEqual(model.features, ("pressure", "temperature"))
@@ -61,7 +72,7 @@ class ModelLoadingTests(TestCase):
     def test_other_algorithms_are_not_loaded_as_lstm(self):
         self.version.algorithm = Algorithm.objects.create(key="transad", name="TransAD")
         self.version.save(update_fields=["algorithm"])
-        with self.assertRaisesMessage(ValidationError, "only the lstm_ae"):
+        with self.assertRaisesMessage(ValidationError, "No model loader is registered for algorithm 'transad'"):
             load_model_version(self.version.pk)
 
     def test_missing_stored_file_has_an_actionable_error(self):
@@ -74,10 +85,10 @@ class ModelLoadingTests(TestCase):
         artifact = self.register()
         for content in (self.content[:-10], self.content + b"extra"):
             Path(artifact.file.path).write_bytes(content)
-            with self.subTest(size=len(content)), patch("algorithms.loading.load_lstm_ae") as deserialize:
+            with self.subTest(size=len(content)), patch("algorithms.loading.default_registry.get_loader") as resolve:
                 with self.assertRaisesMessage(ValidationError, "file size differs"):
                     load_model_version(self.version.pk)
-                deserialize.assert_not_called()
+                resolve.return_value.assert_not_called()
 
     def test_corrupt_checkpoint_errors_are_exposed_as_validation_errors(self):
         self.register(b"not a checkpoint")
@@ -105,7 +116,7 @@ class ModelLoadingTests(TestCase):
         self.register()
         output = StringIO()
         call_command("check_model_weights", str(self.version.pk), stdout=output)
-        self.assertIn("weights loaded on CPU", output.getvalue())
+        self.assertIn("weights loaded for lstm_ae", output.getvalue())
         self.assertIn("2 feature(s)", output.getvalue())
 
     def test_check_command_reports_missing_version_and_invalid_weights(self):
@@ -114,3 +125,46 @@ class ModelLoadingTests(TestCase):
         self.register(b"not a checkpoint")
         with self.assertRaisesMessage(CommandError, "supported tensor checkpoint"):
             call_command("check_model_weights", str(self.version.pk), stdout=StringIO())
+
+    def test_another_algorithm_uses_the_same_database_and_storage_loading_path(self):
+        self.version.algorithm = Algorithm.objects.create(key="example_detector", name="Example Detector")
+        self.version.architecture_params = {"custom_parameter": 7}
+        self.version.save(update_fields=["algorithm", "architecture_params"])
+        self.register(b"external trained weights")
+        received = {}
+
+        def load_example(source, *, architecture_params, input_spec):
+            received.update(content=source.read(), architecture_params=architecture_params, input_spec=input_spec)
+            return ExampleRuntime("example_detector", tuple(input_spec["features"]))
+
+        registry = LoaderRegistry()
+        registry.register("example_detector", load_example)
+        runtime = load_model_version(self.version.pk, registry=registry)
+        self.assertEqual(runtime, ExampleRuntime("example_detector", ("pressure", "temperature")))
+        self.assertEqual(received, {
+            "content": b"external trained weights", "architecture_params": {"custom_parameter": 7},
+            "input_spec": self.version.input_spec,
+        })
+
+    def test_loader_results_must_match_the_shared_contract_and_version_identity(self):
+        self.register()
+        cases = (
+            (object(), "return a ModelRuntime"),
+            (ExampleRuntime("wrong_algorithm", ("pressure", "temperature")), "algorithm does not match"),
+            (ExampleRuntime("lstm_ae", ("temperature", "pressure")), "features do not match"),
+        )
+        for result, message in cases:
+            def load_example(source, *, architecture_params, input_spec):
+                return result
+
+            registry = LoaderRegistry()
+            registry.register("lstm_ae", load_example)
+            with self.subTest(result=result), self.assertRaisesMessage(ValidationError, message):
+                load_model_version(self.version.pk, registry=registry)
+
+    def test_generic_command_supports_a_runtime_without_lstm_attributes(self):
+        runtime = ExampleRuntime("example_detector", ("pressure",))
+        output = StringIO()
+        with patch("algorithms.management.commands.check_model_weights.load_model_version", return_value=runtime):
+            call_command("check_model_weights", str(self.version.pk), stdout=output)
+        self.assertEqual(output.getvalue().strip(), "Model weights loaded for example_detector: 1 feature(s).")

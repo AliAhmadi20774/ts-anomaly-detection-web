@@ -8,7 +8,7 @@ validate the model's neural-network architecture.
 Device names organize folders only; there is no device relationship or extra
 device field on model versions. Version numbers remain unique per algorithm.
 
-## Loading registered LSTM-AE weights
+## Loading registered model weights
 
 `algorithms.loading.load_model_version(model_version_id)` reads the registered
 version, validates its metadata and opens its file through Django storage. It
@@ -16,11 +16,32 @@ copies the stream into a seekable temporary snapshot and checks the registered
 byte count before loading. This supports configured storage streams without
 requiring a local `file.path`. The check never changes model records or files.
 
+The public return type is `ModelRuntime`, defined in
+`algorithms.runtimes.contracts`, rather than an algorithm-specific model class.
+This framework-independent loading contract exposes `algorithm_key` and the
+ordered `features` tuple. It does not yet define inference operations.
+`ModelLoader` describes the common weights-stream and metadata call signature.
+
+`algorithms.runtimes.registry.LoaderRegistry` maps algorithm keys to loaders.
+The default registry explicitly registers `lstm_ae` and imports its PyTorch
+runtime only when selected. To add another algorithm, implement its loader and
+register it under its algorithm key; the database/storage loading service does
+not need another conditional branch. Duplicate registrations are rejected, and
+unsupported keys have no fallback. Registered code is chosen explicitly, never
+imported from a module path stored in the database.
+
+After dispatch, the service verifies that the runtime satisfies the common
+contract and that its algorithm key and feature order match the stored version.
+Each algorithm's loader remains responsible for its architecture, weights
+format, evaluation configuration and framework-specific details. Tests use an
+isolated registry and a second, framework-independent example loader to exercise
+the same storage path. This example is not a production detection algorithm.
+
 ```powershell
 docker compose exec -T backend python manage.py check_model_weights <model-version-uuid>
 ```
 
-The framework-independent loader is
+The algorithm-specific LSTM loader is
 `algorithms.runtimes.lstm_ae.load_lstm_ae(source, architecture_params=..., input_spec=...)`.
 It uses the pinned CPU-only PyTorch runtime. It accepts a tensor `state_dict` or
 a training checkpoint containing `model_state_dict`; optimizer state, epoch and
@@ -58,8 +79,11 @@ An unconfigured preprocessing profile remains unchanged and does not prevent a
 weights-only check; successful loading alone does not establish inference readiness.
 
 `check_model_weights` reports missing versions, unavailable files, byte-count
-mismatches and incompatible checkpoints. Only `lstm_ae` is currently dispatched;
-other algorithms fail explicitly until their own runtime loaders are added.
+mismatches and incompatible checkpoints. Its output uses the common runtime
+identity without inspecting LSTM architecture attributes. This standalone
+diagnostic command is temporary and will be removed after the main inference
+workflow provides the required checks. Only `lstm_ae` currently has a production
+loader; other algorithms fail explicitly until their loaders are registered.
 
 ## Preprocessing metadata
 

@@ -5,11 +5,12 @@ from tempfile import SpooledTemporaryFile
 from django.core.exceptions import ValidationError
 
 from algorithms.models import ModelVersion
-from algorithms.runtimes.lstm_ae import LSTMAutoencoder, load_lstm_ae
+from algorithms.runtimes.contracts import ModelRuntime
+from algorithms.runtimes.registry import LoaderRegistry, default_registry
 
 
-def load_model_version(model_version_id) -> LSTMAutoencoder:
-    """Read and validate a registered LSTM-AE version without changing storage.
+def load_model_version(model_version_id, *, registry: LoaderRegistry | None = None) -> ModelRuntime:
+    """Read a version and dispatch its weights to the selected algorithm loader.
 
     Files are opened through Django storage rather than an absolute local path,
     allowing the existing model mount or another configured storage backend.
@@ -22,10 +23,15 @@ def load_model_version(model_version_id) -> LSTMAutoencoder:
     """
     version = ModelVersion.objects.select_related("algorithm", "weights").get(pk=model_version_id)
     version.full_clean()
-    if version.algorithm.key != "lstm_ae":
-        raise ValidationError("Model loading currently supports only the lstm_ae algorithm.")
+    if registry is None:
+        registry = default_registry
+    try:
+        loader = registry.get_loader(version.algorithm.key)
+    except ValueError as error:
+        raise ValidationError(str(error)) from error
     if version.weights_id is None:
         raise ValidationError("This model version has no registered weights.")
+    expected_features = tuple(version.input_spec["features"])
     artifact = version.weights
     with SpooledTemporaryFile(max_size=16 * 1024 * 1024) as snapshot:
         try:
@@ -42,6 +48,16 @@ def load_model_version(model_version_id) -> LSTMAutoencoder:
             raise ValidationError("Weights file size differs from its registered size.")
         snapshot.seek(0)
         try:
-            return load_lstm_ae(snapshot, architecture_params=version.architecture_params, input_spec=version.input_spec)
+            runtime = loader(snapshot, architecture_params=version.architecture_params, input_spec=version.input_spec)
         except ValueError as error:
             raise ValidationError(str(error)) from error
+        # Structural protocol checks establish attribute presence, not values.
+        # Verify identity here so a loader cannot silently return another model
+        # family or reorder the input columns expected by the stored version.
+        if not isinstance(runtime, ModelRuntime):
+            raise ValidationError("The registered loader must return a ModelRuntime.")
+        if runtime.algorithm_key != version.algorithm.key:
+            raise ValidationError("Loaded runtime algorithm does not match the model version.")
+        if runtime.features != expected_features:
+            raise ValidationError("Loaded runtime features do not match input_spec.features in order.")
+        return runtime

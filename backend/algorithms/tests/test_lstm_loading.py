@@ -6,6 +6,7 @@ import warnings
 
 import torch
 
+from algorithms.runtimes.contracts import ModelRuntime
 from algorithms.runtimes.lstm_ae import LSTMArchitecture, LSTMAutoencoder, load_lstm_ae
 
 
@@ -46,6 +47,8 @@ class LSTMLoadingTests(TestCase):
         for checkpoint in (self.state, {"model_state_dict": self.state, "epoch": 4, "optimizer_state_dict": {"state": {}}}):
             with self.subTest(wrapped="model_state_dict" in checkpoint):
                 model = self.load(checkpoint)
+                self.assertIsInstance(model, ModelRuntime)
+                self.assertEqual(model.algorithm_key, "lstm_ae")
                 self.assertEqual(model.features, ("pressure", "temperature"))
                 for name, tensor in model.state_dict().items():
                     torch.testing.assert_close(tensor, self.state[name], rtol=0, atol=0)

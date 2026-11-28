@@ -8,7 +8,8 @@ from algorithms.models import ModelVersion
 
 
 class Command(BaseCommand):
-    help = "Load registered LSTM-AE weights on CPU and check architecture compatibility without running inference."
+    # Temporary diagnostic until the main inference workflow is available.
+    help = "Check registered weights using the selected algorithm's loader without running inference."
 
     def add_arguments(self, parser):
         parser.add_argument("model_version_id", type=UUID)
@@ -21,6 +22,5 @@ class Command(BaseCommand):
         except ValidationError as error:
             raise CommandError("; ".join(error.messages)) from error
         self.stdout.write(self.style.SUCCESS(
-            f"LSTM-AE weights loaded on CPU: {len(model.features)} feature(s), "
-            f"hidden_size={model.architecture.hidden_size}, layers={model.architecture.num_layers}."
+            f"Model weights loaded for {model.algorithm_key}: {len(model.features)} feature(s)."
         ))

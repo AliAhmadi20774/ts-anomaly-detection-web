@@ -41,6 +41,8 @@ class LSTMAutoencoder(nn.Module):
     or decoding policy. Reconstruction will be implemented separately.
     """
 
+    algorithm_key = "lstm_ae"
+
     def __init__(self, architecture: LSTMArchitecture, features: tuple[str, ...]):
         super().__init__()
         self.architecture = architecture
