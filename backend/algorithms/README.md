@@ -185,62 +185,73 @@ diagnostic command is temporary and will be removed after an analysis entry poin
 provides the required checks. Only `lstm_ae` currently has a production
 loader; other algorithms fail explicitly until their loaders are registered.
 
-## Analyzing a stored test
+## Section analysis configuration
 
-`algorithms.inference.analyze_test` is the permanent backend service connecting
-stored signals, preprocessing, model loading, batched inference and decisions:
+Analysis settings belong to a test definition, independently of its recorded
+serials. The device is inherited from `TestDefinition.device_type`.
+
+| Model | Purpose |
+| --- | --- |
+| `TestSection` | Named, ordered interval `[start_sample, end_sample)` in original samples. |
+| `SectionModelConfig` | Named selection of a model version, threshold, stride, batch size and algorithm-specific inference settings for that section. |
+| `SectionModelInput` | Explicit mapping from a model feature to a `SignalDefinition` belonging to the same test. |
+
+Sections may overlap or leave gaps. A section may have several configurations,
+including different signal selections using the same model. Configuration names
+are unique within their section. Model architecture, trained window size and
+fitted normalization remain on `ModelVersion`; they are not duplicated here.
+
+Threshold, stride, batch size and `inference_params` are required and have no
+defaults. For LSTM-AE, the execution settings are an explicit JSON object such
+as `{"reconstruction_repeats": 10}`. Unknown keys, missing settings and invalid
+repeat counts are rejected. New algorithms add their own validator in
+`runtimes.registry.validate_inference_params` alongside their loader.
+
+Each feature in `ModelVersion.input_spec.features` needs exactly one input
+binding. Signals are identified by foreign key, so renaming a physical signal
+does not break its mapping. Feature order always follows the model specification,
+independently of database ordering. For a multivariate model, the bound signals
+produce one joint MSE per window. Per-signal scores are not implemented yet.
+
+Use `full_clean()` before saving configuration objects. SQL constraints enforce
+local invariants such as valid bounds, unique names/features and finite,
+non-negative thresholds. Cross-table rules and complete input coverage are
+also validated by the analysis service before loading weights.
+
+## Analyzing a stored test
 
 ```python
 from algorithms.inference import analyze_test
 
-result = analyze_test(
-    test_run_id, model_version_id,
-    stride=25, threshold=0.35, batch_size=100, reconstruction_repeats=10,
-    start_sample=0, end_sample=1000,
-)
+result = analyze_test(test_run_id, config_id)
 for window in result.windows:
     print(window.start_time_s, window.end_time_s, window.score, window.status)
 ```
 
-The caller explicitly selects the test and model. Signals must match
-`input_spec.features` by exact name and are placed in that order. Missing,
-empty, unequal-length or non-finite selected signals are rejected. There are
-no inferred aliases, signal substitutions or zero padding. The service uses the
-sample rate saved on `TestRun`; later edits to its definition do not change it.
-It uses one model metadata snapshot for both preprocessing and weight loading.
-`loading.load_model(version)` loads that already-read snapshot;
-`loading.load_model_version(id)` remains the ordinary ID-based loading entry.
+The configuration selects the model, signals, section and execution settings.
+There are no per-call overrides or fallback thresholds. The run must belong to
+the section's test definition. Missing, empty, unequal-length or non-finite
+selected signals, incomplete bindings, out-of-range sections and sections
+without a complete model window are rejected.
 
-`stride` is required and counts processed samples. Optional `start_sample` and
-exclusive `end_sample` select a range in original samples; omission analyzes
-the entire measured signal. Call separately for sections to avoid crossing
-their boundaries. Out-of-range selections and ranges without a complete model
-window are rejected. Result bounds are half-open original sample indices and
-relative seconds, including when resampling is configured.
+Call this service outside caller-owned transactions. It reads configuration
+metadata in a short transaction, releasing locks before preprocessing or
+inference. It uses the same model metadata
+snapshot for preprocessing and weight loading. Sampling rate comes from the
+recorded `TestRun`, so later edits to its definition do not change timing.
+Stride counts processed samples; returned bounds and times use the original
+sample domain. Windows never cross section boundaries.
 
-`threshold` defaults to `0.35` and can be set for each call. It must be a finite,
-non-negative number; booleans and numeric strings are rejected. A score strictly
-greater than the threshold receives `status="anomaly"`; equality or a smaller
-score receives `status="normal"`. Zero is a valid threshold. The applied value
-is recorded in `AnalysisResult.threshold`, not in the database or architecture.
-Changing this decision threshold does not change the MSE scoring calculation.
+A joint score strictly greater than the configured threshold is `"anomaly"`;
+equality or a smaller score is `"normal"`. Zero is a valid threshold. The result
+records configuration, section, model and signal IDs, feature order, source rate,
+execution settings, applied threshold and scored windows.
 
-The runtime must implement `ReconstructionRuntime.predict`; the smaller
-`ModelRuntime` contract remains sufficient for loading-only algorithms.
-Currently LSTM-AE implements reconstruction-based analysis. The model is loaded
-once, batches execute on its device, and scalar scores are copied to CPU once
-per batch. `AnalysisResult` records IDs, ordered features, source rate, stride,
-batch size, repeat count, threshold and immutable scored/labeled windows.
-Source arrays and returned scores still occupy CPU memory; batching bounds
-inference tensor memory.
-
-This service does not create records or expose an HTTP/UI
-entry. Its tests exercise the full database/storage/LSTM path on a disposable
-database. The development model uses `current_a` (current in amperes), matching
-the existing synthetic `test1` traces. These already contain 22,528 samples at
-1 kHz, matching the old signal length without padding or truncation. This demo
-mapping tests the software path; it does not establish training compatibility
-or a calibrated current-anomaly threshold.
+Currently LSTM-AE implements `ReconstructionRuntime.predict`. The model loads
+once; each batch follows its device and dtype. Only scalar scores are copied
+back to CPU. Source arrays and returned scores still occupy CPU memory;
+batching bounds inference tensor memory. The service neither changes source
+data nor persists results. An HTTP/UI entry is a later step.
 
 The inference service and its tests are permanent application code.
 `check_model_weights` is a temporary independent loading diagnostic;

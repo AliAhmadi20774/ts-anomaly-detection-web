@@ -4,7 +4,7 @@ import sys
 from unittest import TestCase
 
 from algorithms.runtimes.contracts import ModelRuntime
-from algorithms.runtimes.registry import get_model_loader
+from algorithms.runtimes.registry import get_model_loader, validate_inference_params
 
 
 @dataclass(frozen=True)
@@ -48,3 +48,8 @@ assert 'torch' not in sys.modules
     def test_common_interface_does_not_require_a_torch_model(self):
         self.assertIsInstance(ExampleRuntime("example", ("pressure",)), ModelRuntime)
         self.assertNotIsInstance(object(), ModelRuntime)
+
+    def test_inference_settings_do_not_fall_back_for_unsupported_algorithms(self):
+        for key in ("transad", "anomaly_transformer", "unknown"):
+            with self.subTest(key=key), self.assertRaisesRegex(ValueError, "No inference settings validator"):
+                validate_inference_params(key, {"reconstruction_repeats": 10})

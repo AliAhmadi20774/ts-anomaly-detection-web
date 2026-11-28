@@ -1,5 +1,7 @@
 """Django adapters for the shared model metadata validation rules."""
 
+import math
+
 from django.core.exceptions import ValidationError
 from django.utils.deconstruct import deconstructible
 
@@ -47,3 +49,16 @@ class PreprocessingValidator:
             validate_preprocessing_input(value, input_spec)
         except ValueError as error:
             raise ValidationError(str(error)) from error
+
+
+@deconstructible
+class NonNegativeFiniteValidator:
+    """Reject negative thresholds and non-finite floating-point values."""
+
+    def __call__(self, value):
+        try:
+            valid = type(value) in (int, float) and math.isfinite(value) and value >= 0
+        except OverflowError:
+            valid = False
+        if not valid:
+            raise ValidationError("Use a finite, non-negative number.")

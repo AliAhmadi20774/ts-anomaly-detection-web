@@ -14,7 +14,7 @@ import torch
 
 from algorithms.artifacts import register_weights
 from algorithms.inference import analyze_test
-from algorithms.models import Algorithm, ModelArtifact, ModelVersion
+from algorithms.models import Algorithm, ModelArtifact, ModelVersion, SectionModelConfig, SectionModelInput, TestSection
 from algorithms.runtimes.lstm_ae import LSTMArchitecture, LSTMAutoencoder
 from algorithms.runtimes.torch_inference import ReconstructionResult
 from devices.models import DeviceRun, DeviceType, MeasurementBatch, SignalDefinition, SignalTrace, TestDefinition, TestRun
@@ -73,10 +73,32 @@ class TestInferenceTests(TestCase):
         torch.save(self.model.state_dict(), content)
         self.artifact = register_weights(self.version.pk, ContentFile(content.getvalue()), device_folder="device1")
         self.runtime = ZeroReconstructionRuntime()
+        self.section = TestSection.objects.create(
+            test=self.definition, name="Section 1", position=0, start_sample=0, end_sample=6,
+        )
+        self.config = SectionModelConfig.objects.create(
+            section=self.section, name="Joint analysis", model_version=self.version,
+            threshold=0.35, stride=1, batch_size=2, inference_params={"reconstruction_repeats": 3},
+        )
+        for feature in self.version.input_spec["features"]:
+            SectionModelInput.objects.create(
+                config=self.config, feature_name=feature,
+                signal=SignalDefinition.objects.get(test=self.definition, name=feature),
+            )
 
     def analyze(self, **options):
-        settings = {"stride": 1, "batch_size": 2, "reconstruction_repeats": 3, **options}
-        return analyze_test(self.test_run.pk, self.version.pk, **settings)
+        for name, value in options.items():
+            if name in ("start_sample", "end_sample"):
+                setattr(self.section, name, value)
+            elif name == "reconstruction_repeats":
+                self.config.inference_params = {"reconstruction_repeats": value}
+            else:
+                setattr(self.config, name, value)
+        self.section.full_clean()
+        self.section.save()
+        self.config.full_clean()
+        self.config.save()
+        return analyze_test(self.test_run.pk, self.config.pk)
 
     def test_selects_feature_order_batches_all_windows_and_returns_plain_scores(self):
         with patch("algorithms.inference.load_model", return_value=self.runtime) as load:
@@ -91,7 +113,11 @@ class TestInferenceTests(TestCase):
         self.assertEqual((result.windows[-1].start_time_s, result.windows[-1].end_time_s), (0.004, 0.006))
         self.assertTrue(all(type(window.score) is float for window in result.windows))
         self.assertEqual((result.test_run_id, result.model_version_id), (self.test_run.pk, self.version.pk))
-        self.assertEqual((result.stride, result.batch_size, result.reconstruction_repeats), (1, 2, 3))
+        self.assertEqual((result.stride, result.batch_size, result.inference_params), (1, 2, {"reconstruction_repeats": 3}))
+        self.assertEqual((result.config_id, result.section_id), (self.config.pk, self.section.pk))
+        self.assertEqual(result.signal_ids, tuple(
+            SignalDefinition.objects.get(test=self.definition, name=name).pk for name in result.features
+        ))
         self.assertEqual(result.threshold, 0.35)
         self.assertTrue(all(window.status == "anomaly" for window in result.windows))
 
@@ -166,11 +192,10 @@ class TestInferenceTests(TestCase):
                     expected.extend(self.model.predict(batch, reconstruction_repeats=3).scores.tolist())
         self.assertEqual([window.score for window in result.windows], expected)
 
-    def test_missing_signal_is_not_replaced_or_aliased(self):
-        self.version.input_spec["features"] = ["signal1"]
-        self.version.save()
+    def test_incomplete_bindings_are_not_inferred_from_matching_signal_names(self):
+        self.config.inputs.filter(feature_name="temperature").delete()
         with patch("algorithms.inference.load_model") as load:
-            with self.assertRaisesMessage(ValidationError, "Missing model input signal(s): signal1"):
+            with self.assertRaisesMessage(ValidationError, "Every model feature must have exactly one explicit signal binding"):
                 self.analyze()
             load.assert_not_called()
 
@@ -186,27 +211,31 @@ class TestInferenceTests(TestCase):
 
     def test_signal_definition_from_another_test_is_rejected(self):
         other = TestDefinition.objects.create(name="Other", device_type=self.definition.device_type, sample_rate_hz=1000)
-        trace = SignalTrace.objects.get(test_run=self.test_run, signal_definition__name="temperature")
-        trace.signal_definition = SignalDefinition.objects.create(test=other, name="temperature")
-        trace.save()
-        with self.assertRaisesMessage(ValidationError, "belong to this test definition"):
+        self.config.inputs.filter(feature_name="temperature").update(
+            signal=SignalDefinition.objects.create(test=other, name="temperature"),
+        )
+        with self.assertRaisesMessage(ValidationError, "belong to the section's test definition"):
             self.analyze()
 
-    def test_invalid_execution_options_fail_without_queries(self):
+    def test_invalid_stored_settings_fail_before_model_loading(self):
         for options in (
-            {"stride": 0}, {"stride": True}, {"batch_size": -1}, {"batch_size": 1.5},
+            {"stride": 0}, {"batch_size": -1},
             {"reconstruction_repeats": False}, {"reconstruction_repeats": 0},
-            {"start_sample": -1}, {"start_sample": True}, {"end_sample": False},
+            {"start_sample": -1},
             {"start_sample": 2, "end_sample": 2},
-            {"threshold": -1}, {"threshold": True}, {"threshold": False},
-            {"threshold": "0.35"}, {"threshold": None}, {"threshold": float("nan")},
-            {"threshold": float("inf")}, {"threshold": -float("inf")}, {"threshold": 10 ** 1000},
+            {"threshold": -1}, {"threshold": None}, {"threshold": float("nan")},
+            {"threshold": float("inf")}, {"threshold": -float("inf")},
         ):
-            with self.subTest(options=options), self.assertNumQueries(0), self.assertRaises(ValidationError):
-                self.analyze(**options)
+            self.section.refresh_from_db()
+            self.config.refresh_from_db()
+            with self.subTest(options=options), patch("algorithms.inference.load_model") as load:
+                with self.assertRaises(ValidationError):
+                    self.analyze(**options)
+                load.assert_not_called()
 
     def test_outside_or_too_short_sample_ranges_fail_before_model_loading(self):
         for options in ({"end_sample": 7}, {"start_sample": 6}, {"start_sample": 5}, {"start_sample": 3, "end_sample": 4}):
+            self.section.start_sample, self.section.end_sample = 0, 6
             with self.subTest(options=options), patch("algorithms.inference.load_model") as load:
                 with self.assertRaises(ValidationError):
                     self.analyze(**options)
@@ -244,6 +273,63 @@ class TestInferenceTests(TestCase):
 
     def test_missing_database_ids_keep_does_not_exist_errors(self):
         with self.assertRaises(TestRun.DoesNotExist):
-            analyze_test(uuid4(), self.version.pk, stride=1)
-        with self.assertRaises(ModelVersion.DoesNotExist):
-            analyze_test(self.test_run.pk, uuid4(), stride=1)
+            analyze_test(uuid4(), self.config.pk)
+        with self.assertRaises(SectionModelConfig.DoesNotExist):
+            analyze_test(self.test_run.pk, uuid4())
+
+    def test_signal_renames_do_not_change_explicit_bindings(self):
+        SignalDefinition.objects.filter(test=self.definition, name="temperature").update(name="temperature_c")
+        with patch("algorithms.inference.load_model", return_value=self.runtime):
+            result = self.analyze()
+        self.assertEqual(self.runtime.calls[0][0][0], ((1, 10), (2, 20)))
+        self.assertEqual(result.features, ("temperature", "pressure"))
+
+    def test_missing_measured_trace_is_rejected_before_loading(self):
+        SignalTrace.objects.filter(test_run=self.test_run, signal_definition__name="temperature").delete()
+        with patch("algorithms.inference.load_model") as load:
+            with self.assertRaisesMessage(ValidationError, "Missing measured signal"):
+                self.analyze()
+            load.assert_not_called()
+
+    def test_config_cannot_analyze_a_different_test_even_with_matching_device(self):
+        other = TestDefinition.objects.create(name="Other", device_type=self.definition.device_type, sample_rate_hz=1000)
+        self.section.test = other
+        self.section.save()
+        with patch("algorithms.inference.load_model") as load:
+            with self.assertRaisesMessage(ValidationError, "run must belong to the section's test definition"):
+                self.analyze()
+            load.assert_not_called()
+
+    def test_sections_have_independent_settings_without_runtime_overrides(self):
+        second = TestSection.objects.create(test=self.definition, name="Section 2", position=1, start_sample=2, end_sample=6)
+        config = SectionModelConfig.objects.create(
+            section=second, name="Another analysis", model_version=self.version,
+            threshold=2000, stride=2, batch_size=1, inference_params={"reconstruction_repeats": 1},
+        )
+        for binding in self.config.inputs.all():
+            SectionModelInput.objects.create(config=config, feature_name=binding.feature_name, signal=binding.signal)
+        with patch("algorithms.inference.load_model", return_value=self.runtime):
+            first = self.analyze()
+            result = analyze_test(self.test_run.pk, config.pk)
+        self.assertEqual((first.threshold, result.threshold), (0.35, 2000))
+        self.assertEqual([(w.start_sample, w.end_sample) for w in result.windows], [(2, 4), (4, 6)])
+        self.assertTrue(all(w.status == "normal" for w in result.windows))
+        self.assertEqual(result.inference_params, {"reconstruction_repeats": 1})
+        self.assertEqual(ModelVersion.objects.count(), 1)
+        with self.assertRaises(TypeError):
+            analyze_test(self.test_run.pk, config.pk, threshold=0.35)
+
+    def test_mid_inference_edits_do_not_change_the_active_settings_snapshot(self):
+        def load_and_edit(version):
+            SectionModelConfig.objects.filter(pk=self.config.pk).update(
+                threshold=2000, inference_params={"reconstruction_repeats": 1},
+            )
+            TestSection.objects.filter(pk=self.section.pk).update(start_sample=2)
+            return self.runtime
+
+        with patch("algorithms.inference.load_model", side_effect=load_and_edit):
+            result = self.analyze()
+        self.assertEqual(result.threshold, 0.35)
+        self.assertEqual(result.inference_params, {"reconstruction_repeats": 3})
+        self.assertEqual(len(result.windows), 5)
+        self.assertEqual([repeats for _, repeats in self.runtime.calls], [3, 3, 3])
