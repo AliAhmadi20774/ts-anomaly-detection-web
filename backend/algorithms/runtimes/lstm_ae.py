@@ -8,7 +8,7 @@ import torch
 from torch import nn
 
 from algorithms._specs import validate_input_spec, validate_json_object
-from algorithms.runtimes.torch_device import get_torch_device
+from algorithms.runtimes.torch_device import as_numeric_tensor, get_torch_device, to_model_tensor
 
 
 @dataclass(frozen=True, slots=True)
@@ -67,6 +67,19 @@ class LSTMAutoencoder(nn.Module):
     def device(self) -> torch.device:
         """The actual model device; inference inputs must use this same device."""
         return next(self.parameters()).device
+
+    def prepare_inputs(self, data) -> torch.Tensor:
+        """Prepare one [batch, sample, feature] batch on this model's device.
+
+        Pass preprocessed window values in self.features order. This converts
+        and transfers inputs only; it does not reconstruct or score signals.
+        """
+        inputs = as_numeric_tensor(data)
+        if inputs.ndim != 3 or any(size == 0 for size in inputs.shape):
+            raise ValueError("LSTM inputs must have non-empty [batch, sample, feature] dimensions.")
+        if inputs.shape[2] != len(self.features):
+            raise ValueError("LSTM input feature count must match the model's features.")
+        return to_model_tensor(inputs, model=self)
 
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
         raise NotImplementedError("Reconstruction execution is not implemented in the model-loading stage.")

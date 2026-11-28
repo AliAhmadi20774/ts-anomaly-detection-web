@@ -89,12 +89,34 @@ is not transferred to GPU. The returned model is in evaluation mode with all
 parameter gradients disabled. A transfer error, including GPU memory exhaustion,
 is reported rather than silently retrying on CPU.
 
-`model.device` reports the actual parameter device. Future inference must create
-or transfer input tensors on that device; loading alone does not execute the
-model. The existing list-based preprocessing remains on CPU. Reuse
-`get_torch_device()` in future PyTorch algorithm loaders so device selection is
-consistent. No hardware choice is saved in model metadata, and the same weights
-file can be used on CPU development machines and CUDA servers.
+`model.device` reports the actual parameter device. `model.prepare_inputs(data)`
+accepts one preprocessed `[batch, sample, feature]` batch and returns its tensor
+on that same device with the same dtype as the model. It validates non-empty
+dimensions, feature count and finite values after dtype conversion. Lists,
+NumPy arrays and existing tensors are supported, without modifying inputs or
+retaining training graphs. Input transfer errors are reported without a device
+fallback. This prepares data only; reconstruction and scoring remain separate.
+
+```python
+from itertools import islice
+
+# windows comes from iter_preprocessed_windows(...), in model.features order.
+window_batch = list(islice(windows, 64))
+if window_batch:
+    inputs = model.prepare_inputs([window.values for window in window_batch])
+    assert inputs.device == model.device
+```
+
+Prepare and consume one batch at a time rather than retaining the entire dataset
+on GPU. The existing list-based preprocessing remains on CPU; its resulting
+model inputs are transferred to GPU before model computation. Reuse
+`get_torch_device()` for model loading and `as_numeric_tensor(data)` to read
+inputs in future PyTorch algorithms. Validate the algorithm's input shape before
+calling `to_model_tensor(inputs, model=...)` to transfer the batch. This rejects
+invalid shapes before allocating GPU input memory. Input transfer follows the actual
+model parameters instead of independently choosing a device a second time. No
+hardware choice is saved in model metadata, and the same weights file can be
+used on CPU development machines and CUDA servers.
 
 See [the deployment instructions](../README.md#cpu-and-gpu-deployment) for the
 CUDA build and Docker device access. The selection follows the official
@@ -106,7 +128,7 @@ layers; see [PyTorch LSTM](https://docs.pytorch.org/docs/2.15/generated/torch.nn
 Tensor dimensions cannot prove the training dropout or preprocessing recipe.
 Those declarations still need to match external training.
 
-This step implements the parameter graph and weight loading only. Calling the
+This stage implements model loading and input preparation. Calling the
 model for reconstruction raises `NotImplementedError`: encoder-state
 initialization, decoding and scoring will be implemented separately. The loader
 does not import or execute legacy project code, choose a reconstruction policy,

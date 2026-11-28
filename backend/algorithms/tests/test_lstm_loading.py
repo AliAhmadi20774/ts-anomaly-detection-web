@@ -210,9 +210,15 @@ class LSTMCudaLoadingTests(TestCase):
 
         # Check actual CUDA kernels without choosing a reconstruction policy.
         with torch.inference_mode():
-            inputs = torch.ones((1, 3, 2), device=model.device)
+            inputs = model.prepare_inputs([[[1, 1], [1, 1], [1, 1]]])
+            self.assertEqual(inputs.device, model.device)
+            self.assertEqual(inputs.dtype, next(model.parameters()).dtype)
+            self.assertEqual(model.prepare_inputs(inputs).data_ptr(), inputs.data_ptr())
             _, hidden = model.encoder.lstm(inputs)
             decoded, _ = model.decoder.lstm(inputs, hidden)
             output = model.decoder.linear(decoded)
         self.assertEqual(output.device, model.device)
         self.assertTrue(torch.isfinite(output).all().item())
+        cpu_inputs = original.prepare_inputs(inputs)
+        self.assertEqual(cpu_inputs.device.type, "cpu")
+        torch.testing.assert_close(cpu_inputs, inputs.cpu(), rtol=0, atol=0)
