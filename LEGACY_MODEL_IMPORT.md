@@ -1,208 +1,63 @@
-# راهنمای انتقال تنظیمات مدل از سرور قدیمی به دیتابیس جدید
+# Import real server model settings
 
-برای انتقال کانفیگ واقعی سرور، از `global_config.py` و فایل‌های وزن همان سرور یک بسته بسازید؛ سپس آن را در بک‌اند جدید بررسی و وارد کنید. بسته شامل `manifest.json` و کپی وزن‌ها است. فایل نمونه موجود در `legacy/` پروژه، جایگزین کانفیگ واقعی شما نیست.
+Use the real server config and weights, rather than the sample files in this project. Back up the destination database and `backend/models` first.
 
-**در پیاده‌سازی فعلی، اطلاعات مدل و پیش‌پردازش وارد دیتابیس می‌شوند. محدوده بخش‌ها، آستانه‌ها و تنظیمات اجرای تحلیل فقط در JSON حفظ می‌شوند؛ هنوز برای آن‌ها ثبت و اجرای دیتابیسی نداریم.**
+## 1. Prepare the old files
 
-## چه اطلاعاتی منتقل می‌شود
-
-| اطلاعات نسخه قدیمی | مقصد فعلی |
-| --- | --- |
-| خانواده الگوریتم | ارتباط نسخه با `Algorithm`؛ فعلاً `lstm_ae` |
-| `hidden_size`، `num_layers`، `dropout` | `ModelVersion.architecture_params` |
-| نام ورودی و نرخ نمونه‌برداری مورد انتظار مدل | `ModelVersion.input_spec` |
-| `transfo`، `resample_freq`، `size_window` | مراحل `ModelVersion.preprocessing` |
-| `model_path` و محتوای وزن‌ها | کپی در پوشه مدل‌ها و ثبت مسیر نسبی و اندازه در `ModelArtifact` |
-| نام دستگاه | فولدربندی فایل‌ها؛ ارتباط دستگاه در جدول مدل ساخته نمی‌شود |
-| نام تست، ترتیب و محدوده بخش‌ها، `step_window`، `batch_size` | بخش `legacy` در `manifest.json`؛ فعلاً خارج از دیتابیس |
-| `threshold1`، `threshold2` و `expected_len` | بخش `legacy` در `manifest.json`؛ فعلاً خارج از دیتابیس |
-| رفتار تکمیل طول سیگنال و تعداد تکرار بازسازی | قرارداد اجرای قدیمی در JSON؛ فعلاً خارج از دیتابیس |
-
-فایل وزن به‌صورت باینری در دیتابیس ذخیره نمی‌شود. دیتابیس نشانی فایل و مشخصات مدل را نگه می‌دارد. هش محاسبه یا ثبت نمی‌شود.
-
-## محدودیت‌های واردکننده فعلی
-
-این ابزار برای ساختار LSTM-AE بررسی‌شده در نسخه قدیمی نوشته شده است. قبل از انتقال کانفیگ واقعی، موارد زیر باید با اجرای واقعی سرور شما تطابق داشته باشند:
-
-- ورودی تک‌سیگناله با نام `signal1` است. کد قدیمی `Signal1` را هم می‌پذیرفت، ولی نام ثبت‌شده مدل جدید `signal1` خواهد بود.
-- نرخ سیگنال خام در کد قدیمی ۱۰۰۰ هرتز فرض شده است.
-- `transfo` باید دقیقاً `["mean"]` باشد. چند تبدیل، `max`، `min` یا مقدار رشته‌ای `"mean"` در صادرکننده فعلی پذیرفته نمی‌شود.
-- `resample_freq` دوره زمانی بر حسب میلی‌ثانیه است. مقدار `"1"` یعنی نرخ خروجی ۱۰۰۰ هرتز و `"2.5"` یعنی ۴۰۰ هرتز. دوره کمتر از یک میلی‌ثانیه پذیرفته نمی‌شود.
-- نرمال‌سازی روی `none` تنظیم می‌شود. اگر مدل واقعی با نرمال‌سازی اجرا می‌شود، این صادرکننده بدون تطبیق برای آن مدل مناسب نیست.
-- پنجره ناقص انتهایی حذف می‌شود؛ اندازه پنجره از `size_window` می‌آید. گام حرکت از `step_window` در JSON حفظ می‌شود.
-- قرارداد بایگانی‌شده اجرای قدیمی، ۱۰ بازسازی و تکمیل سیگنال کوتاه غیرخالی با صفر است. اگر رفتار واقعی سرور فرق دارد، این قسمت هم باید تطبیق داده شود.
-
-فایل وزن نمی‌تواند به‌تنهایی صحت نام سیگنال، نرخ یا نرمال‌سازی را ثابت کند. موفقیت بررسی وزن‌ها فقط سازگاری معماری و محتوای وزن‌ها را تأیید می‌کند. تنظیمات انتقالی از مسیر **اجرای قدیمی** می‌آیند؛ تنظیمات آموزش باید با مدل واقعی شما سازگار باشند.
-
-اگر هر کدام از این شرایط با سرور فرق دارد، قبل از `--apply` باید ابزار انتقال با همان شرایط تطبیق داده شود. برای عبور از خطا، مقادیر واقعی مدل را به مقادیر نمونه تغییر ندهید.
-
-## آماده کردن منبع واقعی
-
-از دیتابیس مقصد و پوشه `backend/models` نسخه پشتیبان بگیرید. پوشه برنامه قدیمی و وزن‌های اصلی آن را هم حفظ کنید؛ عملیات انتقال را روی یک کپی یا با خروجی در پوشه‌ای جدا انجام دهید.
-
-ابزار، **پوشه ریشه برنامه قدیمی** را می‌گیرد، نه مسیر مستقیم `global_config.py`. ساختار منبع باید چنین باشد:
+Keep this layout:
 
 ```text
-old-anomaly/
-├── src/
-│   └── config/
-│       └── global_config.py
-└── checkpoints/
-    ├── device1/
-    │   └── lstm_ae_epoch_1
-    └── device2/
-        └── actual_checkpoint
+old-app/src/config/global_config.py
+old-app/checkpoints/<device>/<weights-file>
 ```
 
-برای مثال، مقدار زیر در کانفیگ، نسبت به `old-anomaly/` خوانده می‌شود:
+The config must contain a plain dictionary declared as `CONFIG: dict = {...}`. Weight paths must be relative to `old-app`, for example `checkpoints/device1/model.pt`.
 
-```python
-"model_path": "checkpoints/device1/lstm_ae_epoch_1"
-```
+The current exporter supports **LSTM-AE, one signal named `signal1`, raw data at 1000 Hz, `["mean"]`, and no normalization**. If the real model uses other settings, update the exporter before importing. It does not run Python code inside the config.
 
-همه وزن‌های ارجاع‌شده باید داخل همین ریشه موجود باشند. برای وزن‌های روی شبکه یا مسیر مطلق، فایل‌ها را در یک پوشه آماده‌سازی با این ساختار کپی کنید و مسیرها را **در کپی کانفیگ** نسبی کنید؛ محتوای وزن‌ها تغییر نمی‌کند.
+## 2. Export a bundle
 
-صادرکننده فقط یک تعریف صریح به شکل زیر را می‌خواند:
-
-```python
-CONFIG: dict = {
-    # The actual device, test and section settings belong here.
-}
-```
-
-داده‌ها باید مستقیماً در دیکشنری نوشته شده باشند. تعریف ساده `CONFIG = {...}` در نسخه فعلی ابزار شناسایی نمی‌شود؛ در کپی فایل می‌توانید فقط سرآیند را به `CONFIG: dict = {...}` تبدیل کنید. ساخت کانفیگ با تابع، متغیرهای دیگر، حلقه یا بارگذاری فایل پشتیبانی نمی‌شود.
-
-برای هر تست، `sections_order` باید همه بخش‌های `sections` را دقیقاً یک بار داشته باشد. ابزار کانفیگ پایتون را اجرا نمی‌کند؛ تغییراتی که پس از تعریف `CONFIG` با کد اعمال شده‌اند یا آستانه‌های موقت حافظه برنامه، خودکار وارد بسته نمی‌شوند. کانفیگ آماده‌سازی باید مقادیر نهایی مورد نظر شما را صریح داشته باشد.
-
-## ساخت بسته انتقال
-
-دستورها را از ریشه پروژه جدید اجرا کنید؛ همان پوشه‌ای که `compose.yaml` در آن است. صادرکننده فقط به کتابخانه استاندارد پایتون نیاز دارد. پایتون پروژه را به کار ببرید؛ در سرور لینوکس، بسته به نصب شما نام دستور ممکن است `python3` باشد.
-
-نمونه ویندوز، با جایگزین کردن مسیر واقعی برنامه قدیمی:
-
-```powershell
-python scripts/export_legacy_models.py "D:/ServerCopy/old-anomaly" "backend/models/imports/server-import-01"
-```
-
-نمونه لینوکس:
+Run from the new project's root. Replace the old application path. On Linux, use `python3` if needed.
 
 ```bash
-python3 scripts/export_legacy_models.py /srv/old-anomaly backend/models/imports/server-import-01
+python scripts/export_legacy_models.py "/path/to/old-app" backend/models/imports/server-01
 ```
 
-**پوشه خروجی باید جدید باشد.** اگر قبلاً وجود دارد، نام دیگری مانند `server-import-02` انتخاب کنید. خروجی قبلی بازنویسی نمی‌شود. اگر کپی فایل‌ها در میانه کار شکست خورد هم برای تلاش بعدی یک خروجی جدید انتخاب کنید.
+Use a new output folder each time. The bundle contains `manifest.json` and copies of the weights. To use another server, copy the whole bundle there.
 
-خروجی شبیه این است؛ تعداد دستگاه‌ها و نسخه‌ها از کانفیگ واقعی می‌آید:
+## 3. Start the backend
 
-```text
-backend/models/imports/server-import-01/
-├── manifest.json
-├── device1/
-│   └── lstm_ae/v1/weights.bin
-└── device2/
-    └── lstm_ae/v2/weights.bin
-```
-
-وزن مشترک با مسیر منبع یکسان، دستگاه یکسان و مشخصات ورودی و پیش‌پردازش یکسان، یک نسخه می‌گیرد؛ استفاده آن در چند تست یا بخش، نسخه تکراری نمی‌سازد. فایل‌هایی با مسیر منبع متفاوت خودکار براساس محتوای باینری یکی نمی‌شوند. تفاوت دستگاه یا مشخصات مدل هم می‌تواند نسخه جدا بسازد.
-
-اگر بسته را روی ماشین دیگری ساخته‌اید، **کل پوشه خروجی** را به `backend/models/imports/server-import-01` در ماشین مقصد کپی کنید. انتقال فقط `manifest.json` کافی نیست.
-
-## بررسی نسخه‌های دیتابیس مقصد
-
-در ماشین مقصد، اتصال PostgreSQL و تنظیمات `.env` باید آماده باشند. مدل‌ها داخل ایمیج کپی نمی‌شوند؛ Compose پوشه مدل‌های میزبان را به کانتینر متصل می‌کند.
+The destination PostgreSQL connection and `.env` must already be configured.
 
 ```bash
 docker compose up -d --build backend
 docker compose exec -T backend python manage.py migrate --noinput
-docker compose exec -T backend python manage.py shell -c "from algorithms.models import ModelVersion; print(list(ModelVersion.objects.values('algorithm__key', 'version', 'weights__file')))"
 ```
 
-در نصب معمول، migration اولیه الگوریتم `lstm_ae` را ایجاد می‌کند. واردکننده، الگوریتم جدید یا پیاده‌سازی الگوریتم دیگری نمی‌سازد.
-
-شماره‌ها در هر بسته از ۱ آغاز می‌شوند و در دیتابیس برای **هر الگوریتم** یکتا هستند، نه برای هر دستگاه. بنابراین نسخه واقعی سرور ممکن است با نسخه آزمایشی موجود برخورد کند. واردکننده شماره آزاد انتخاب نمی‌کند و مدل قبلی را خودکار حذف یا جایگزین نمی‌کند.
-
-اگر نسخه موجود دقیقاً همان مدل و وزن‌ها باشد، دوباره استفاده می‌شود. فقط `preprocessing=None` قابل تکمیل است؛ پیش‌پردازش از قبل تنظیم‌شده باید با بسته برابر باشد.
-
-برای انتقال مدل متفاوت، شماره‌های آزاد انتخاب کنید. برای نمونه، اگر نسخه ۱ بسته باید به نسخه ۱۱ تبدیل شود و نسخه ۱۱ آزاد است، این سه مورد را در **یک کپی از بسته** هماهنگ تغییر دهید:
-
-1. در `models`، مقدار `version` را به `11` و `weights` را به `device1/lstm_ae/v11/weights.bin` تغییر دهید.
-2. داخل همان بسته، پوشه `device1/lstm_ae/v1` را به `device1/lstm_ae/v11` تغییر نام دهید؛ مقصد نباید از قبل وجود داشته باشد.
-3. در `legacy.bindings`، ارتباط‌های مربوط به همان الگوریتم و نسخه را از `1` به `11` تغییر دهید.
-
-در بسته‌های چندمدلی، این کار باید برای همه نسخه‌های متعارض با شماره‌های یکتای آزاد انجام شود. بخش `legacy.config`، تصویر اصلی کانفیگ قدیمی است و هنگام تغییر شماره مقصد دست‌نخورده می‌ماند. قبل از ثبت، پیش‌نمایش را دوباره اجرا کنید.
-
-## پیش‌نمایش ورود
-
-در مسیر استاندارد Compose، این دو نشانی به یک فایل اشاره می‌کنند:
-
-| محل | نشانی فایل |
-| --- | --- |
-| میزبان | `backend/models/imports/server-import-01/manifest.json` |
-| داخل کانتینر | `/app/models/imports/server-import-01/manifest.json` |
+## 4. Preview first
 
 ```bash
-docker compose exec -T backend python manage.py import_model_bundle /app/models/imports/server-import-01/manifest.json
+docker compose exec -T backend python manage.py import_model_bundle /app/models/imports/server-01/manifest.json
 ```
 
-بدون `--apply`، رکورد دیتابیس و فایل‌های ثبت‌شده تغییر نمی‌کنند. ساختار بسته، مشخصات ورودی، پیش‌پردازش، سازگاری واقعی وزن‌ها و اختلاف با نسخه‌های موجود بررسی می‌شود. بارگذار می‌تواند برای این بررسی مدل را روی GPU موجود بارگذاری کند؛ این مرحله تحلیل سیگنال اجرا نمی‌کند.
+This checks the settings and weights without changing stored files or database records. Check the model list and settings in `manifest.json` too.
 
-در صورت موفقیت، مسیر نسخه‌ها و پیام `Preview only` دیده می‌شود. تعداد مدل‌ها، نام دستگاه‌ها، اندازه پنجره، نرخ و مسیر وزن‌ها را در `manifest.json` هم بررسی کنید؛ پیش‌نمایش تطبیق معنایی با آموزش را انجام نمی‌دهد.
+Versions start at 1. If a version conflicts with an existing model, choose a free number. Update its `version`, weight path, weight folder and matching `legacy.bindings` entries in the bundle, then preview again. Do not delete existing models to bypass a conflict.
 
-## ثبت اطلاعات در دیتابیس
-
-پس از بررسی موفق بسته واقعی، همان دستور را با `--apply` اجرا کنید:
+## 5. Import
 
 ```bash
-docker compose exec -T backend python manage.py import_model_bundle /app/models/imports/server-import-01/manifest.json --apply
+docker compose exec -T backend python manage.py import_model_bundle /app/models/imports/server-01/manifest.json --apply
 ```
 
-پیام موفقیت به شکل `Imported N model(s)` خواهد بود. در این مرحله:
+Success shows `Imported N model(s)`. Repeating the same import does not create duplicates.
 
-1. نسخه‌ها و مشخصات آن‌ها در `ModelVersion` ثبت یا طبق قواعد بالا تکمیل می‌شوند.
-2. وزن‌ها در مسیر نهایی مدل‌ها کپی یا با فایل موجود مقایسه می‌شوند.
-3. مسیر نسبی و اندازه فایل در `ModelArtifact` ثبت و به نسخه متصل می‌شود.
+## What is saved
 
-مثال مسیر نهایی برای نسخه ۱۱:
+- **Database:** model version, architecture, input settings, preprocessing, weight path and file size.
+- **Disk:** weights under `backend/models/<device>/lstm_ae/v<version>/weights.bin`. Docker sees the same folder at `/app/models`.
+- **JSON only:** test assignments, section ranges, stride, batch size, thresholds and signal length rules. These are not yet active database settings.
 
-```text
-Host:       backend/models/device1/lstm_ae/v11/weights.bin
-Container:  /app/models/device1/lstm_ae/v11/weights.bin
-Database:   device1/lstm_ae/v11/weights.bin
-```
+Importing does not start anomaly detection. Keep the bundle with your database and model backups; model files are not included in Git or the Docker image.
 
-بسته انتقال در `imports/`، منبع و آرشیو انتقال است؛ مسیر نهایی ثبت‌شده در دیتابیس همان پوشه دستگاه و نسخه در ریشه مدل‌ها خواهد بود.
-
-## بررسی نتیجه و نگهداری فایل‌ها
-
-برای دیدن مشخصات ثبت‌شده:
-
-```bash
-docker compose exec -T backend python manage.py shell -c "from algorithms.models import ModelVersion; print(list(ModelVersion.objects.values('id', 'algorithm__key', 'version', 'architecture_params', 'input_spec', 'preprocessing', 'weights__file')))"
-```
-
-برای بررسی مستقل بارگذاری یک نسخه، شناسه `id` آن را از خروجی بالا جایگزین کنید:
-
-```bash
-docker compose exec -T backend python manage.py check_model_weights MODEL_VERSION_UUID
-```
-
-اجرای مجدد `import_model_bundle` با همان بسته و `--apply`، رکورد یا وزن تکراری ایجاد نمی‌کند. تغییر وزن یا مشخصات به نسخه جدید نیاز دارد. اگر فایل ثبت‌شده در دسترس نباشد، ابزار آن را خودکار جایگزین نمی‌کند؛ مسیر ذخیره‌سازی یا نسخه پشتیبان باید بازیابی شود.
-
-ثبت دیتابیس تراکنشی است، اما فایل‌سیستم تراکنش دیتابیس را برنمی‌گرداند. اگر ثبت پس از کپی فایل شکست بخورد، فایل باقی‌مانده در اجرای مجدد با مقایسه بایت‌ها قابل استفاده است؛ آن را کورکورانه بازنویسی نکنید.
-
-پوشه `backend/models` و بسته انتقال در Git ثبت نمی‌شوند و داخل ایمیج Docker هم قرار نمی‌گیرند. از دیتابیس، وزن‌های نهایی و `manifest.json` پشتیبان نگه دارید. چون بخشی از تنظیمات هنوز فقط در JSON است، آرشیو انتقال را تا پیاده‌سازی و انتقال تنظیمات اجرای تحلیل حفظ کنید.
-
-## خطاهای رایج
-
-| خطا یا وضعیت | علت و اقدام |
-| --- | --- |
-| `Expected exactly one literal CONFIG declaration` | تعریف `CONFIG` باید یک دیکشنری صریح با سرآیند `CONFIG: dict = ...` باشد؛ کپی کانفیگ را به ساختار پشتیبانی‌شده تبدیل کنید. |
-| `This adapter supports only the audited single mean feature` | تبدیل‌ها با `["mean"]` فرق دارند؛ ابزار انتقال باید برای مدل واقعی تطبیق داده شود. |
-| `Checkpoint must be an existing file inside the legacy root` | مسیر وزن یا ریشه برنامه قدیمی نادرست است، یا وزن بیرون ریشه قرار دارد. |
-| `FileExistsError` هنگام خروجی گرفتن | پوشه بسته از قبل وجود دارد؛ یک نام خروجی جدید انتخاب کنید. |
-| `conflicting ...` یا `different weights` | نسخه مقصد با بسته فرق دارد؛ مطابق بخش شماره نسخه، یک نسخه آزاد تعیین کنید. |
-| `incompatible shape` یا کلیدهای وزن ناسازگار | معماری، تعداد ورودی یا فایل وزن با تنظیمات مدل همخوان نیست؛ کانفیگ و وزن درست را کنار هم قرار دهید. |
-| `Weights must be an existing file inside the bundle` | وزن‌ها همراه JSON منتقل نشده‌اند یا مسیرشان هماهنگ نیست. |
-| فایل میزبان موجود است ولی در Docker پیدا نمی‌شود | مسیر داخل کانتینر باید `/app/models/...` باشد؛ فایل Compose و اتصال پوشه مدل‌ها را بررسی کنید. |
-
-کدهای مرتبط: [صادرکننده](scripts/export_legacy_models.py)، [واردکننده](backend/algorithms/management/commands/import_model_bundle.py) و [ساختار ذخیره‌سازی وزن‌ها](backend/models/README.md).
+See [the backend model documentation](backend/algorithms/README.md) for details.

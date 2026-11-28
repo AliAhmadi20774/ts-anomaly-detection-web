@@ -35,7 +35,7 @@ See [the model storage walkthrough](backend/models/README.md) for the folder lay
 the local-to-container mapping and registration steps. Model binaries are ignored
 by Git and should be backed up together with the database.
 
-For the real server configuration, follow the Persian
+For the real server configuration, follow the
 [legacy model import guide](LEGACY_MODEL_IMPORT.md). It covers preparing the source,
 exporting weights and settings, previewing/importing into Docker, version conflicts,
 and the execution settings that currently remain archived in JSON.
