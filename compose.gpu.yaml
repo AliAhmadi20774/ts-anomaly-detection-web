@@ -1,0 +1,14 @@
+# Server overlay: docker compose -f compose.yaml -f compose.gpu.yaml up -d --build backend
+services:
+  backend:
+    image: ts-anomaly-detection-web-backend:cuda
+    build:
+      args:
+        TORCH_INDEX_URL: ${TORCH_INDEX_URL:-https://download.pytorch.org/whl/cu132}
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]

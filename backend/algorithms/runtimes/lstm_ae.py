@@ -8,6 +8,7 @@ import torch
 from torch import nn
 
 from algorithms._specs import validate_input_spec, validate_json_object
+from algorithms.runtimes.torch_device import get_torch_device
 
 
 @dataclass(frozen=True, slots=True)
@@ -62,6 +63,11 @@ class LSTMAutoencoder(nn.Module):
             "linear": nn.Linear(architecture.hidden_size, len(features), device="cpu", dtype=torch.float32),
         })
 
+    @property
+    def device(self) -> torch.device:
+        """The actual model device; inference inputs must use this same device."""
+        return next(self.parameters()).device
+
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
         raise NotImplementedError("Reconstruction execution is not implemented in the model-loading stage.")
 
@@ -95,7 +101,7 @@ def _validate_weights(state: dict, architecture: LSTMArchitecture, feature_count
 
 
 def load_lstm_ae(source: BinaryIO, *, architecture_params: dict, input_spec: dict) -> LSTMAutoencoder:
-    """Load CPU weights from a seekable binary stream, without executing a model.
+    """Load weights and place the model on an available CUDA GPU or CPU.
 
     Accept either a tensor state dictionary or a training checkpoint containing
     model_state_dict. Other training entries are ignored. Deserialization always
@@ -125,4 +131,11 @@ def load_lstm_ae(source: BinaryIO, *, architecture_params: dict, input_spec: dic
     model.load_state_dict(state, strict=True)
     model.eval()
     model.requires_grad_(False)
+    # Validate the checkpoint on CPU first. Transfer only the model's weights,
+    # not unrelated training data such as optimizer state, to the selected GPU.
+    device = get_torch_device()
+    try:
+        model.to(device)
+    except RuntimeError as error:
+        raise ValueError(f"Could not place the model on {device}: {error}") from error
     return model

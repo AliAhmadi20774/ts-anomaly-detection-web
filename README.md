@@ -20,6 +20,9 @@ The serial-details toolbar plots the selected test's signals in a zoomable dialo
 Development proceeds in small, explained steps, keeping the code simple, readable, and maintainable.
 
 See [backend development](backend/README.md) for test organization and commands.
+The default Docker build uses CPU for development; the
+[GPU server overlay](backend/README.md#cpu-and-gpu-deployment) enables CUDA without
+changing model files or database records.
 
 ## Model files
 

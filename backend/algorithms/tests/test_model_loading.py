@@ -27,6 +27,9 @@ class ExampleRuntime:
 
 class ModelLoadingTests(TestCase):
     def setUp(self):
+        device = patch("algorithms.runtimes.lstm_ae.get_torch_device", return_value=torch.device("cpu"))
+        device.start()
+        self.addCleanup(device.stop)
         directory = TemporaryDirectory()
         self.addCleanup(directory.cleanup)
         settings = override_settings(MEDIA_ROOT=directory.name)

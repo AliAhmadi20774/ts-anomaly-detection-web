@@ -64,7 +64,7 @@ docker compose exec -T backend python manage.py check_model_weights <model-versi
 
 The algorithm-specific LSTM loader is
 `algorithms.runtimes.lstm_ae.load_lstm_ae(source, architecture_params=..., input_spec=...)`.
-It uses the pinned CPU-only PyTorch runtime. It accepts a tensor `state_dict` or
+It uses the pinned PyTorch runtime. It accepts a tensor `state_dict` or
 a training checkpoint containing `model_state_dict`; optimizer state, epoch and
 loss are not applied. Loading explicitly uses `map_location="cpu"` and
 `weights_only=True`, with no unrestricted-pickle fallback. See the official
@@ -81,9 +81,24 @@ its order. There is no second feature-count field to keep synchronized.
 Before constructing the network, the loader checks exact parameter names,
 shapes, dense float32 tensor types and finite values. Mismatched hidden sizes,
 layer counts or feature counts are rejected rather than partially loaded or
-silently cast. Construction explicitly uses CPU/float32 and preserves the
-caller's CPU random state. The returned model is in evaluation mode with all
-parameter gradients disabled.
+silently cast. Checkpoint validation and initial construction use CPU/float32,
+preserving the caller's CPU random state. The loader then transfers the complete
+model to the device chosen by `runtimes/torch_device.py`: the first visible CUDA
+GPU when `torch.cuda.is_available()` is true, otherwise CPU. Training-only state
+is not transferred to GPU. The returned model is in evaluation mode with all
+parameter gradients disabled. A transfer error, including GPU memory exhaustion,
+is reported rather than silently retrying on CPU.
+
+`model.device` reports the actual parameter device. Future inference must create
+or transfer input tensors on that device; loading alone does not execute the
+model. The existing list-based preprocessing remains on CPU. Reuse
+`get_torch_device()` in future PyTorch algorithm loaders so device selection is
+consistent. No hardware choice is saved in model metadata, and the same weights
+file can be used on CPU development machines and CUDA servers.
+
+See [the deployment instructions](../README.md#cpu-and-gpu-deployment) for the
+CUDA build and Docker device access. The selection follows the official
+[PyTorch device-agnostic example](https://docs.pytorch.org/docs/2.15/notes/cuda.html#device-agnostic-code).
 
 The declared dropout setting is retained in `model.architecture`. Effective
 dropout is zero for one layer because LSTM dropout applies between stacked

@@ -7,7 +7,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 COPY requirements.txt .
-RUN python -m pip install --no-cache-dir -r requirements.txt
+ARG TORCH_INDEX_URL=https://download.pytorch.org/whl/cpu
+RUN python -m pip install --no-cache-dir -r requirements.txt --extra-index-url "${TORCH_INDEX_URL}"
 
 RUN useradd --create-home --uid 10001 appuser
 

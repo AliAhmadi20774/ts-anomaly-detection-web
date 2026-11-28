@@ -1,6 +1,6 @@
 from copy import deepcopy
 from io import BytesIO
-from unittest import TestCase
+from unittest import TestCase, skipUnless
 from unittest.mock import patch
 import warnings
 
@@ -16,6 +16,10 @@ class UnsupportedMetadata:
 
 class LSTMLoadingTests(TestCase):
     def setUp(self):
+        # Keep validation tests deterministic on both CPU and GPU test hosts.
+        device = patch("algorithms.runtimes.lstm_ae.get_torch_device", return_value=torch.device("cpu"))
+        device.start()
+        self.addCleanup(device.stop)
         self.params = {"hidden_size": 2, "num_layers": 1, "dropout": 0.2}
         self.spec = {"features": ["pressure", "temperature"], "sample_rate_hz": 1000}
         # A small, explicit two-feature checkpoint with distinct known weights.
@@ -50,6 +54,7 @@ class LSTMLoadingTests(TestCase):
                 self.assertIsInstance(model, ModelRuntime)
                 self.assertEqual(model.algorithm_key, "lstm_ae")
                 self.assertEqual(model.features, ("pressure", "temperature"))
+                self.assertEqual(model.device, torch.device("cpu"))
                 for name, tensor in model.state_dict().items():
                     torch.testing.assert_close(tensor, self.state[name], rtol=0, atol=0)
                     self.assertEqual(tensor.device.type, "cpu")
@@ -158,6 +163,56 @@ class LSTMLoadingTests(TestCase):
             torch.set_default_dtype(original)
         self.assertTrue(all(parameter.dtype == torch.float32 for parameter in model.parameters()))
 
+    def test_loader_transfers_the_validated_model_to_the_selected_gpu(self):
+        # Exercise CUDA dispatch on CPU CI; the integration test below needs a GPU.
+        with (
+            patch("algorithms.runtimes.lstm_ae.get_torch_device", return_value=torch.device("cuda:0")),
+            patch.object(LSTMAutoencoder, "to", autospec=True) as transfer,
+        ):
+            model = self.load()
+        transfer.assert_called_once_with(model, torch.device("cuda:0"))
+
+    def test_gpu_transfer_failure_is_reported_without_silent_cpu_fallback(self):
+        with (
+            patch("algorithms.runtimes.lstm_ae.get_torch_device", return_value=torch.device("cuda:0")),
+            patch.object(LSTMAutoencoder, "to", side_effect=RuntimeError("CUDA out of memory")) as transfer,
+            self.assertRaisesRegex(ValueError, "Could not place the model on cuda:0.*out of memory"),
+        ):
+            self.load()
+        self.assertEqual(transfer.call_count, 1)
+
     def test_reconstruction_policy_is_not_silently_chosen_by_the_loader(self):
         with self.assertRaisesRegex(NotImplementedError, "Reconstruction"):
             self.load()(torch.zeros(1, 4, 2))
+
+
+@skipUnless(torch.cuda.is_available(), "A working CUDA GPU is required.")
+class LSTMCudaLoadingTests(TestCase):
+    def test_loaded_weights_and_model_layers_work_on_cuda(self):
+        original = LSTMAutoencoder(LSTMArchitecture(2, 1, 0.2), ("pressure", "temperature"))
+        stream = BytesIO()
+        torch.save({"model_state_dict": original.state_dict()}, stream)
+        stream.seek(0)
+
+        model = load_lstm_ae(
+            stream,
+            architecture_params={"hidden_size": 2, "num_layers": 1, "dropout": 0.2},
+            input_spec={"features": ["pressure", "temperature"]},
+        )
+
+        self.assertEqual(model.device, torch.device("cuda:0"))
+        for name, tensor in model.state_dict().items():
+            self.assertEqual(tensor.device, model.device)
+            self.assertEqual(tensor.dtype, torch.float32)
+            torch.testing.assert_close(tensor.cpu(), original.state_dict()[name], rtol=0, atol=0)
+        self.assertFalse(model.training)
+        self.assertTrue(all(not parameter.requires_grad for parameter in model.parameters()))
+
+        # Check actual CUDA kernels without choosing a reconstruction policy.
+        with torch.inference_mode():
+            inputs = torch.ones((1, 3, 2), device=model.device)
+            _, hidden = model.encoder.lstm(inputs)
+            decoded, _ = model.decoder.lstm(inputs, hidden)
+            output = model.decoder.linear(decoded)
+        self.assertEqual(output.device, model.device)
+        self.assertTrue(torch.isfinite(output).all().item())

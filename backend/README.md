@@ -1,5 +1,52 @@
 # Backend development
 
+## CPU and GPU deployment
+
+Model loaders automatically prefer the first visible CUDA GPU and otherwise use
+CPU. The default Docker build installs CPU PyTorch for development:
+
+```powershell
+docker compose up -d --build backend
+```
+
+On an NVIDIA GPU server, use the additional Compose file. It builds CUDA PyTorch
+and requests one GPU for the backend. Its `:cuda` image tag keeps the GPU build
+separate from the default CPU image:
+
+```powershell
+docker compose -f compose.yaml -f compose.gpu.yaml up -d --build backend
+```
+
+The server needs a compatible NVIDIA GPU/driver and Docker GPU support. Follow
+the [Docker GPU prerequisites](https://docs.docker.com/compose/how-tos/gpu-support/)
+or [Docker Desktop GPU setup](https://docs.docker.com/desktop/features/gpu/) for
+the host platform. The GPU overlay explicitly requires GPU access; use the base
+Compose file on CPU hosts. Application-level CPU fallback applies after the
+container starts, when PyTorch cannot see an available CUDA device.
+
+Both builds use PyTorch 2.15.0. The Dockerfile defaults `TORCH_INDEX_URL` to the
+official CPU wheel index. The GPU overlay defaults it to the official `cu132`
+index; override the build variable when deploying another supported CUDA wheel
+variant for the same PyTorch version. Changing a wheel index requires rebuilding
+the image. No GPU driver or CUDA toolkit is installed on the development host by
+these project changes.
+
+Check the deployed build and device:
+
+```powershell
+docker compose -f compose.yaml -f compose.gpu.yaml exec -T backend python -c "import torch; from algorithms.runtimes.torch_device import get_torch_device; print(torch.__version__, torch.version.cuda, get_torch_device())"
+```
+
+To install the CPU build in a local virtual environment, from `backend/`:
+
+```powershell
+python -m pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu
+```
+
+Only model placement is implemented so far. Inference must put input tensors on
+the model's device when that step is added. Parsing, validation and the existing
+list-based preprocessing remain CPU work.
+
 ## Tests
 
 Each app keeps its tests in a `tests/` Python package, next to the code it covers.
@@ -22,6 +69,7 @@ backend/
     test_resampling.py
     test_runtime_registry.py
     test_storage_only_migration.py
+    test_torch_device.py
     test_windowing.py
   dat_imports/tests/
   devices/tests/
@@ -43,6 +91,12 @@ The standalone LSTM weight-loader tests require PyTorch/NumPy from
 ```powershell
 python -m unittest algorithms.tests.test_lstm_loading -v
 ```
+
+`test_torch_device.py` checks CUDA preference and CPU fallback without needing
+a GPU. Loader tests check dispatch and transfer errors on CPU test hosts. The
+CUDA integration test in `test_lstm_loading.py` checks exact weights and actual
+LSTM/linear CUDA execution when a working GPU is available; it is skipped on CPU
+hosts. Run the suite on a GPU server to complete that hardware verification.
 
 `test_model_loading.py` covers database metadata, private storage and the
 `check_model_weights` management command as part of the complete Django suite.
