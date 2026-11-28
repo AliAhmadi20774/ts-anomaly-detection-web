@@ -12,6 +12,8 @@ backend/
   algorithms/tests/
     test_algorithms.py
     test_artifacts.py
+    test_lstm_loading.py
+    test_model_loading.py
     test_model_versions.py
     test_models_root_migration.py
     test_normalization.py
@@ -33,6 +35,16 @@ environment active:
 ```powershell
 python -m unittest algorithms.tests.test_normalization algorithms.tests.test_windowing algorithms.tests.test_preprocessing algorithms.tests.test_resampling -v
 ```
+
+The standalone LSTM weight-loader tests require PyTorch/NumPy from
+`requirements.txt`, but no Django settings or database:
+
+```powershell
+python -m unittest algorithms.tests.test_lstm_loading -v
+```
+
+`test_model_loading.py` covers database metadata, private storage and the
+`check_model_weights` management command as part of the complete Django suite.
 
 For the complete suite, configure `PGHOST`, `PGPORT`, `PGDATABASE`, `PGUSER` and
 `PGPASSWORD` for a disposable PostgreSQL instance, then run from `backend/`:

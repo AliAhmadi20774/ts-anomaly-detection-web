@@ -4,3 +4,8 @@ django-filter==26.2
 psycopg[binary]==3.3.8
 uvicorn==0.54.0
 protobuf==7.36.2
+
+# CPU-only PyTorch wheels for the backend and local Windows/Linux development.
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.15.0+cpu
+numpy==2.5.5

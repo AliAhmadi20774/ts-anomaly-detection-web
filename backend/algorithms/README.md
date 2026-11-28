@@ -8,6 +8,59 @@ validate the model's neural-network architecture.
 Device names organize folders only; there is no device relationship or extra
 device field on model versions. Version numbers remain unique per algorithm.
 
+## Loading registered LSTM-AE weights
+
+`algorithms.loading.load_model_version(model_version_id)` reads the registered
+version, validates its metadata and opens its file through Django storage. It
+copies the stream into a seekable temporary snapshot and checks the registered
+byte count before loading. This supports configured storage streams without
+requiring a local `file.path`. The check never changes model records or files.
+
+```powershell
+docker compose exec -T backend python manage.py check_model_weights <model-version-uuid>
+```
+
+The framework-independent loader is
+`algorithms.runtimes.lstm_ae.load_lstm_ae(source, architecture_params=..., input_spec=...)`.
+It uses the pinned CPU-only PyTorch runtime. It accepts a tensor `state_dict` or
+a training checkpoint containing `model_state_dict`; optimizer state, epoch and
+loss are not applied. Loading explicitly uses `map_location="cpu"` and
+`weights_only=True`, with no unrestricted-pickle fallback. See the official
+[PyTorch serialization documentation](https://docs.pytorch.org/docs/2.15/notes/serialization.html).
+
+The supported parameter topology has an encoder LSTM, decoder LSTM and decoder
+linear output layer, with checkpoint names `encoder.lstm.*`, `decoder.lstm.*`
+and `decoder.linear.*`. Both LSTMs are unidirectional, batch-first and use biases.
+`architecture_params` must contain exactly `hidden_size`, `num_layers` and
+`dropout`. Hidden size and layer count are positive integers; dropout is in
+`[0, 1]`. Input/output feature count comes from `input_spec.features`, preserving
+its order. There is no second feature-count field to keep synchronized.
+
+Before constructing the network, the loader checks exact parameter names,
+shapes, dense float32 tensor types and finite values. Mismatched hidden sizes,
+layer counts or feature counts are rejected rather than partially loaded or
+silently cast. Construction explicitly uses CPU/float32 and preserves the
+caller's CPU random state. The returned model is in evaluation mode with all
+parameter gradients disabled.
+
+The declared dropout setting is retained in `model.architecture`. Effective
+dropout is zero for one layer because LSTM dropout applies between stacked
+layers; see [PyTorch LSTM](https://docs.pytorch.org/docs/2.15/generated/torch.nn.LSTM.html).
+Tensor dimensions cannot prove the training dropout or preprocessing recipe.
+Those declarations still need to match external training.
+
+This step implements the parameter graph and weight loading only. Calling the
+model for reconstruction raises `NotImplementedError`: encoder-state
+initialization, decoding and scoring will be implemented separately. The loader
+does not import or execute legacy project code, choose a reconstruction policy,
+run preprocessing, train, calculate anomaly scores or register analysis results.
+An unconfigured preprocessing profile remains unchanged and does not prevent a
+weights-only check; successful loading alone does not establish inference readiness.
+
+`check_model_weights` reports missing versions, unavailable files, byte-count
+mismatches and incompatible checkpoints. Only `lstm_ae` is currently dispatched;
+other algorithms fail explicitly until their own runtime loaders are added.
+
 ## Preprocessing metadata
 
 `ModelVersion.preprocessing` is an optional, validated JSON declaration. SQL
