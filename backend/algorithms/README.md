@@ -228,9 +228,11 @@ scores still occupy CPU memory; batching bounds inference tensor memory.
 
 This service does not create records, apply thresholds or expose an HTTP/UI
 entry. Its tests exercise the full database/storage/LSTM path on a disposable
-database. The current development model expects `signal1`; the existing sensor
-examples have other names, so those examples correctly fail feature validation
-until compatible measurements are supplied. They are not silently relabeled.
+database. The development model uses `current_a` (current in amperes), matching
+the existing synthetic `test1` traces. These already contain 22,528 samples at
+1 kHz, matching the old signal length without padding or truncation. This demo
+mapping tests the software path; it does not establish training compatibility
+or a calibrated current-anomaly threshold.
 
 The inference service and its tests are permanent application code.
 `check_model_weights` is a temporary independent loading diagnostic;
@@ -343,7 +345,7 @@ profile = {
 }
 windows = list(iter_preprocessed_windows(
     [[10], [14], [18]], preprocessing=profile,
-    input_spec={"features": ["signal1"]}, stride=1, offset=100,
+    input_spec={"features": ["current_a"]}, stride=1, offset=100,
 ))
 # [100, 102): ((0.0,), (2.0,))
 # [101, 103): ((2.0,), (4.0,))
@@ -426,7 +428,7 @@ profile = {
 }
 windows = list(iter_preprocessed_windows(
     [[2], [4], [10], [14]], preprocessing=profile,
-    input_spec={"features": ["signal1"], "sample_rate_hz": 500},
+    input_spec={"features": ["current_a"], "sample_rate_hz": 500},
     source_sample_rate_hz=1000, stride=1, offset=100,
 ))
 # One window: values ((3.0,), (12.0,)), original bounds [100, 104).
