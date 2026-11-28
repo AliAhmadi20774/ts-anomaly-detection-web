@@ -10,6 +10,16 @@ device field on model versions. Version numbers remain unique per algorithm.
 
 ## Loading registered model weights
 
+The loading path has three parts:
+
+```text
+loading.py                       Read the version and its weights from storage
+  -> runtimes/registry.py        Choose the loading function by algorithm key
+  -> runtimes/lstm_ae.py         Build LSTM-AE and load its trained weights
+```
+
+`contracts.py` describes the shared interface; it does not run any loading code.
+
 `algorithms.loading.load_model_version(model_version_id)` reads the registered
 version, validates its metadata and opens its file through Django storage. It
 copies the stream into a seekable temporary snapshot and checks the registered
@@ -22,20 +32,31 @@ This framework-independent loading contract exposes `algorithm_key` and the
 ordered `features` tuple. It does not yet define inference operations.
 `ModelLoader` describes the common weights-stream and metadata call signature.
 
-`algorithms.runtimes.registry.LoaderRegistry` maps algorithm keys to loaders.
-The default registry explicitly registers `lstm_ae` and imports its PyTorch
-runtime only when selected. To add another algorithm, implement its loader and
-register it under its algorithm key; the database/storage loading service does
-not need another conditional branch. Duplicate registrations are rejected, and
-unsupported keys have no fallback. Registered code is chosen explicitly, never
-imported from a module path stored in the database.
+`algorithms.runtimes.registry.get_model_loader(algorithm_key)` is the single
+place that selects a loading function. Its explicit `match` returns
+`load_lstm_ae` for `lstm_ae` and rejects unsupported keys. The function is returned,
+not called: `loading.py` calls it after reading and checking the weights file.
+Imports stay inside each case, so unused frameworks are not loaded. There is no
+mutable registration state, wrapper loader or plugin discovery.
+
+To implement another algorithm:
+
+1. Add its model and loading function in its own `runtimes/` module.
+2. Use the `ModelLoader` signature and return a model exposing `algorithm_key`
+   and ordered `features`. Validate architecture and weights in that loader.
+3. Add a case in `get_model_loader` that imports and returns that function.
+4. Test the loader's weights and metadata, including incompatible checkpoints.
+
+The database/storage service stays the same for every algorithm. Code paths are
+chosen explicitly in Python, never imported from database module paths.
 
 After dispatch, the service verifies that the runtime satisfies the common
 contract and that its algorithm key and feature order match the stored version.
 Each algorithm's loader remains responsible for its architecture, weights
-format, evaluation configuration and framework-specific details. Tests use an
-isolated registry and a second, framework-independent example loader to exercise
-the same storage path. This example is not a production detection algorithm.
+format, evaluation configuration and framework-specific details. Tests substitute
+a framework-independent example loading function at the selection boundary to
+exercise the same database/storage path. This example is not a production
+detection algorithm.
 
 ```powershell
 docker compose exec -T backend python manage.py check_model_weights <model-version-uuid>

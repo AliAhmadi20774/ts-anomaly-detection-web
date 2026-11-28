@@ -47,8 +47,9 @@ python -m unittest algorithms.tests.test_lstm_loading -v
 `test_model_loading.py` covers database metadata, private storage and the
 `check_model_weights` management command as part of the complete Django suite.
 It also exercises a second example algorithm through the same loading service.
-`test_runtime_registry.py` checks the shared loading contract and dispatch using
-standard-library test cases, independently of Django and PyTorch.
+`test_runtime_registry.py` checks explicit loader selection, the shared interface
+and lazy framework imports. Its LSTM selection check requires PyTorch but no
+Django settings or database.
 
 For the complete suite, configure `PGHOST`, `PGPORT`, `PGDATABASE`, `PGUSER` and
 `PGPASSWORD` for a disposable PostgreSQL instance, then run from `backend/`:

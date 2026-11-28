@@ -1,33 +1,40 @@
-"""Framework-independent contracts for loaded models and their loaders."""
+"""The common interface used by every algorithm's loading function."""
 
 from typing import BinaryIO, Protocol, runtime_checkable
 
 
 @runtime_checkable
 class ModelRuntime(Protocol):
-    """Shared identity of a loaded model, independent of its implementation.
+    """Metadata every loaded model must expose, regardless of its framework.
 
-    This is the loading contract only. Inference operations and their outputs
-    will be specified separately; this interface does not imply inference is
-    available. Callers treat these properties as read-only metadata.
+    Protocol describes the required attributes; models need not inherit from it.
+    This interface covers loading only. It does not define inference yet.
     """
 
     @property
-    def algorithm_key(self) -> str: ...
+    def algorithm_key(self) -> str:
+        """Algorithm identifier, such as 'lstm_ae'."""
+        ...
 
     @property
-    def features(self) -> tuple[str, ...]: ...
+    def features(self) -> tuple[str, ...]:
+        """Input signal names in the exact order expected by the model."""
+        ...
 
 
 class ModelLoader(Protocol):
-    """Build a runtime from validated version metadata and a weights stream.
-
-    source is a seekable binary stream owned by the caller. Implementations
-    validate their own architecture and checkpoint format, returning a runtime
-    whose identity matches the selected algorithm and ordered input features.
-    Invalid model metadata or weights should raise ValueError.
-    """
+    """Signature shared by load_lstm_ae and future algorithm loaders."""
 
     def __call__(
-        self, source: BinaryIO, *, architecture_params: dict, input_spec: dict,
-    ) -> ModelRuntime: ...
+        self,
+        source: BinaryIO,
+        *,
+        architecture_params: dict,
+        input_spec: dict,
+    ) -> ModelRuntime:
+        """Read weights and return a model; invalid metadata or weights raise ValueError.
+
+        source is a seekable binary stream. The caller owns and closes it.
+        Each loader validates its own architecture and checkpoint format.
+        """
+        ...

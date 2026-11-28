@@ -17,7 +17,6 @@ from algorithms.loading import load_model_version
 from algorithms.models import Algorithm, ModelArtifact, ModelVersion
 from algorithms.runtimes.contracts import ModelRuntime
 from algorithms.runtimes.lstm_ae import LSTMArchitecture, LSTMAutoencoder
-from algorithms.runtimes.registry import LoaderRegistry
 
 
 @dataclass(frozen=True)
@@ -72,7 +71,7 @@ class ModelLoadingTests(TestCase):
     def test_other_algorithms_are_not_loaded_as_lstm(self):
         self.version.algorithm = Algorithm.objects.create(key="transad", name="TransAD")
         self.version.save(update_fields=["algorithm"])
-        with self.assertRaisesMessage(ValidationError, "No model loader is registered for algorithm 'transad'"):
+        with self.assertRaisesMessage(ValidationError, "No model loader is available for algorithm 'transad'"):
             load_model_version(self.version.pk)
 
     def test_missing_stored_file_has_an_actionable_error(self):
@@ -85,7 +84,7 @@ class ModelLoadingTests(TestCase):
         artifact = self.register()
         for content in (self.content[:-10], self.content + b"extra"):
             Path(artifact.file.path).write_bytes(content)
-            with self.subTest(size=len(content)), patch("algorithms.loading.default_registry.get_loader") as resolve:
+            with self.subTest(size=len(content)), patch("algorithms.loading.get_model_loader") as resolve:
                 with self.assertRaisesMessage(ValidationError, "file size differs"):
                     load_model_version(self.version.pk)
                 resolve.return_value.assert_not_called()
@@ -137,9 +136,9 @@ class ModelLoadingTests(TestCase):
             received.update(content=source.read(), architecture_params=architecture_params, input_spec=input_spec)
             return ExampleRuntime("example_detector", tuple(input_spec["features"]))
 
-        registry = LoaderRegistry()
-        registry.register("example_detector", load_example)
-        runtime = load_model_version(self.version.pk, registry=registry)
+        with patch("algorithms.loading.get_model_loader", return_value=load_example) as resolve:
+            runtime = load_model_version(self.version.pk)
+        resolve.assert_called_once_with("example_detector")
         self.assertEqual(runtime, ExampleRuntime("example_detector", ("pressure", "temperature")))
         self.assertEqual(received, {
             "content": b"external trained weights", "architecture_params": {"custom_parameter": 7},
@@ -157,10 +156,25 @@ class ModelLoadingTests(TestCase):
             def load_example(source, *, architecture_params, input_spec):
                 return result
 
-            registry = LoaderRegistry()
-            registry.register("lstm_ae", load_example)
-            with self.subTest(result=result), self.assertRaisesMessage(ValidationError, message):
-                load_model_version(self.version.pk, registry=registry)
+            with (
+                self.subTest(result=result),
+                patch("algorithms.loading.get_model_loader", return_value=load_example),
+                self.assertRaisesMessage(ValidationError, message),
+            ):
+                load_model_version(self.version.pk)
+
+    def test_loader_cannot_change_the_expected_feature_order(self):
+        self.register()
+
+        def load_reordered(source, *, architecture_params, input_spec):
+            input_spec["features"].reverse()
+            return ExampleRuntime("lstm_ae", tuple(input_spec["features"]))
+
+        with (
+            patch("algorithms.loading.get_model_loader", return_value=load_reordered),
+            self.assertRaisesMessage(ValidationError, "features do not match"),
+        ):
+            load_model_version(self.version.pk)
 
     def test_generic_command_supports_a_runtime_without_lstm_attributes(self):
         runtime = ExampleRuntime("example_detector", ("pressure",))
