@@ -19,6 +19,8 @@ The serial-details toolbar plots the selected test's signals in a zoomable dialo
 
 Development proceeds in small, explained steps, keeping the code simple, readable, and maintainable.
 
+See [backend development](backend/README.md) for test organization and commands.
+
 ## Model files
 
 Trained weights are organized in `backend/models/<device-folder>/<algorithm>/v<version>/weights.bin`.

@@ -58,6 +58,38 @@ selection, zero-padding, imputation or custom feature extraction; these need
 explicit step definitions before a complete recipe using them can be registered.
 Stride and batch size belong to future analysis-run settings, not this field.
 
+## Normalization primitive
+
+`algorithms.normalization.normalize_samples` executes one stored `normalize`
+step on `[sample, feature]` rows. It is independent of Django, legacy code and
+model frameworks. Parameters must come from external training, in the same
+column order as `input_spec.features`; the function never fits a scaler.
+
+```python
+from algorithms.normalization import normalize_samples
+
+step = {
+    "type": "normalize", "method": "standardize",
+    "mean": [10, 100], "scale": [2, 20],
+}
+normalized = normalize_samples([[8, 60], [14, 120]], step=step)
+# ((-1.0, -2.0), (2.0, 1.0))
+```
+
+`none` preserves values. `standardize` uses `(x - mean) / scale`; `minmax` uses
+`x * scale + offset` with optional clipping to the stored range. Without
+clipping, values outside the training range remain outside the target range.
+The result contains immutable float rows; inputs and parameters are unchanged.
+Invalid samples, feature-count mismatches and arithmetic overflow are rejected.
+Overflow is checked before clipping so clipping cannot hide invalid arithmetic.
+Empty input returns an empty tuple after validating the normalization step.
+
+Metadata validation and execution share `validate_normalization`, ensuring that
+both accept the same fitted parameter format. Sample validation is shared with
+windowing in the private `_samples` module. Normalization can be called before
+windowing or on each window's values; it does not change sample bounds. There is
+still no complete configured pipeline executor or inference endpoint.
+
 ## Windowing primitive
 
 `algorithms.windowing.iter_windows` is a standalone, standard-library-only

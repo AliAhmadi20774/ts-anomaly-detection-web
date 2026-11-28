@@ -4,6 +4,8 @@ import math
 from django.core.exceptions import ValidationError
 from django.utils.deconstruct import deconstructible
 
+from algorithms.normalization import validate_normalization
+
 
 @deconstructible
 class JsonObjectValidator:
@@ -50,44 +52,6 @@ class PreprocessingValidator:
         if set(value) != set(expected):
             raise ValidationError(f"Expected exactly these fields: {', '.join(sorted(expected))}.")
 
-    @staticmethod
-    def _finite(value):
-        try:
-            return type(value) in (int, float) and math.isfinite(value)
-        except OverflowError:
-            return False
-
-    def _vector(self, value, name, *, positive=False):
-        if not isinstance(value, list) or not value:
-            raise ValidationError(f"{name} must be a non-empty numeric list in input feature order.")
-        if not all(self._finite(item) and (not positive or item > 0) for item in value):
-            raise ValidationError(f"{name} must contain finite {'positive ' if positive else ''}numbers.")
-
-    def _normalization(self, step):
-        method = step.get("method")
-        if method == "none":
-            self._fields(step, {"type", "method"})
-        elif method == "standardize":
-            self._fields(step, {"type", "method", "mean", "scale"})
-            self._vector(step["mean"], "mean")
-            self._vector(step["scale"], "scale", positive=True)
-            if len(step["mean"]) != len(step["scale"]):
-                raise ValidationError("mean and scale must have the same length.")
-        elif method == "minmax":
-            self._fields(step, {"type", "method", "scale", "offset", "range", "clip"})
-            self._vector(step["scale"], "scale")
-            self._vector(step["offset"], "offset")
-            self._vector(step["range"], "range")
-            if len(step["scale"]) != len(step["offset"]) or any(scale < 0 for scale in step["scale"]):
-                raise ValidationError("Min-max scale and offset must have equal lengths and scales must be non-negative.")
-            bounds = step["range"]
-            if len(bounds) != 2 or bounds[1] <= bounds[0] or not self._finite(bounds[1] - bounds[0]):
-                raise ValidationError("range must contain an increasing pair with a finite positive span.")
-            if type(step["clip"]) is not bool:
-                raise ValidationError("clip must be true or false.")
-        else:
-            raise ValidationError("Normalization method must be none, standardize or minmax.")
-
     def __call__(self, value):
         if value is None:
             return
@@ -104,7 +68,10 @@ class PreprocessingValidator:
                 raise ValidationError("Each preprocessing step must be an object.")
             kind = step.get("type")
             if kind == "normalize":
-                self._normalization(step)
+                try:
+                    validate_normalization(step)
+                except ValueError as error:
+                    raise ValidationError(str(error)) from error
             elif kind == "resample":
                 self._fields(step, {"type", "method"})
                 if step["method"] not in ("mean", "min", "max"):

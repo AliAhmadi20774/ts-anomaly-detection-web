@@ -5,6 +5,7 @@ from django.db import IntegrityError, transaction
 from django.test import TestCase
 
 from algorithms.models import Algorithm, ModelVersion
+from algorithms.normalization import normalize_samples
 
 
 class PreprocessingTests(TestCase):
@@ -59,6 +60,17 @@ class PreprocessingTests(TestCase):
         model.save()
         model.refresh_from_db()
         self.assertEqual(model.preprocessing, profile)
+
+    def test_saved_normalization_step_can_be_executed_in_input_feature_order(self):
+        model = self.model(self.profile({
+            "type": "normalize", "method": "standardize", "mean": [10, 100], "scale": [2, 20],
+        }))
+        model.full_clean()
+        model.save()
+        model.refresh_from_db()
+        # Columns are pressure, temperature, as declared in input_spec.features.
+        result = normalize_samples([[8, 60], [14, 120]], step=model.preprocessing["steps"][0])
+        self.assertEqual(result, ((-1, -2), (2, 1)))
 
     def test_unknown_schemas_empty_values_and_unknown_steps_are_rejected(self):
         for value in [
