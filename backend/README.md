@@ -116,6 +116,8 @@ the suite on a GPU server to complete hardware verification.
 `test_model_loading.py` covers database metadata, private storage and the
 `check_model_weights` management command as part of the complete Django suite.
 It also exercises a second example algorithm through the same loading service.
+`test_inference.py` covers stored signal selection, preprocessing, source-time
+bounds, batching, failure validation and the full registered LSTM-to-score path.
 `test_runtime_registry.py` checks explicit loader selection, the shared interface
 and lazy framework imports. Its LSTM selection check requires PyTorch but no
 Django settings or database.

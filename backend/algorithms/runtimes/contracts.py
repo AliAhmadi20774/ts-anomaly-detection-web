@@ -1,6 +1,9 @@
 """The common interface used by every algorithm's loading function."""
 
-from typing import BinaryIO, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, BinaryIO, Protocol, runtime_checkable
+
+if TYPE_CHECKING:
+    from algorithms.runtimes.torch_inference import ReconstructionResult
 
 
 @runtime_checkable
@@ -37,4 +40,17 @@ class ModelLoader(Protocol):
         source is a seekable binary stream. The caller owns and closes it.
         Each loader validates its own architecture and checkpoint format.
         """
+        ...
+
+
+@runtime_checkable
+class ReconstructionRuntime(ModelRuntime, Protocol):
+    """Inference interface for runtimes returning reconstructions and window scores.
+
+    This is separate from the loading contract: successfully loading another
+    algorithm does not imply that it supports reconstruction-based inference.
+    """
+
+    def predict(self, data, *, reconstruction_repeats: int = 10) -> "ReconstructionResult":
+        """Return one finite MSE score per input window on the runtime's device."""
         ...

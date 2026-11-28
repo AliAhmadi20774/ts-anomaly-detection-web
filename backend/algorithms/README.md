@@ -185,6 +185,59 @@ diagnostic command is temporary and will be removed after an analysis entry poin
 provides the required checks. Only `lstm_ae` currently has a production
 loader; other algorithms fail explicitly until their loaders are registered.
 
+## Analyzing a stored test
+
+`algorithms.inference.analyze_test` is the permanent backend service connecting
+stored signals, preprocessing, model loading and batched inference:
+
+```python
+from algorithms.inference import analyze_test
+
+result = analyze_test(
+    test_run_id, model_version_id,
+    stride=25, batch_size=100, reconstruction_repeats=10,
+    start_sample=0, end_sample=1000,
+)
+for window in result.windows:
+    print(window.start_time_s, window.end_time_s, window.score)
+```
+
+The caller explicitly selects the test and model. Signals must match
+`input_spec.features` by exact name and are placed in that order. Missing,
+empty, unequal-length or non-finite selected signals are rejected. There are
+no inferred aliases, signal substitutions or zero padding. The service uses the
+sample rate saved on `TestRun`; later edits to its definition do not change it.
+It uses one model metadata snapshot for both preprocessing and weight loading.
+`loading.load_model(version)` loads that already-read snapshot;
+`loading.load_model_version(id)` remains the ordinary ID-based loading entry.
+
+`stride` is required and counts processed samples. Optional `start_sample` and
+exclusive `end_sample` select a range in original samples; omission analyzes
+the entire measured signal. Call separately for sections to avoid crossing
+their boundaries. Out-of-range selections and ranges without a complete model
+window are rejected. Result bounds are half-open original sample indices and
+relative seconds, including when resampling is configured.
+
+The runtime must implement `ReconstructionRuntime.predict`; the smaller
+`ModelRuntime` contract remains sufficient for loading-only algorithms.
+Currently LSTM-AE implements reconstruction-based analysis. The model is loaded
+once, batches execute on its device, and scalar scores are copied to CPU once
+per batch. `AnalysisResult` records IDs, ordered features, source rate, stride,
+batch size, repeat count and immutable window scores. Source arrays and returned
+scores still occupy CPU memory; batching bounds inference tensor memory.
+
+This service does not create records, apply thresholds or expose an HTTP/UI
+entry. Its tests exercise the full database/storage/LSTM path on a disposable
+database. The current development model expects `signal1`; the existing sensor
+examples have other names, so those examples correctly fail feature validation
+until compatible measurements are supplied. They are not silently relabeled.
+
+The inference service and its tests are permanent application code.
+`check_model_weights` is a temporary independent loading diagnostic;
+`register_model_weights` remains a weight-registration tool. The two
+`sample_data.generate_sample_*` modules generate test fixtures and are not part
+of production inference. No automatic legacy transfer scripts are required.
+
 ## Preprocessing metadata
 
 `ModelVersion.preprocessing` is an optional, validated JSON declaration. SQL

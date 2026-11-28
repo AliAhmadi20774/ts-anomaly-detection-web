@@ -18,6 +18,11 @@ def load_model_version(model_version_id) -> ModelRuntime:
     ModelVersion.DoesNotExist; invalid metadata or weights raise ValidationError.
     """
     version = ModelVersion.objects.select_related("algorithm", "weights").get(pk=model_version_id)
+    return load_model(version)
+
+
+def load_model(version: ModelVersion) -> ModelRuntime:
+    """Load an already-read version so preprocessing and weights use one snapshot."""
     version.full_clean()
 
     try:
