@@ -47,7 +47,12 @@ Both model placement and input transfer are implemented. For LSTM-AE, use
 `model.prepare_inputs(data)` for each preprocessed `[batch, sample, feature]`
 batch. The returned tensor matches the model's actual device and dtype. Parsing
 and list-based preprocessing remain CPU work; model inputs are transferred to
-GPU when the model is on GPU. Reconstruction and scoring are not implemented yet.
+GPU when the model is on GPU. `model.predict(data, reconstruction_repeats=10)`
+returns mean reconstruction and per-window MSE on that same device. The repeat
+count is a positive integer execution argument and is included in the returned
+result; no analysis results are persisted to the database yet. See
+[reconstruction and scoring](algorithms/README.md#lstm-ae-reconstruction-and-scoring)
+for the stochastic decoding policy and batch-level runtime boundary.
 
 ## Tests
 
@@ -61,6 +66,7 @@ backend/
   algorithms/tests/
     test_algorithms.py
     test_artifacts.py
+    test_lstm_inference.py
     test_lstm_inputs.py
     test_lstm_loading.py
     test_model_loading.py
@@ -101,7 +107,11 @@ CUDA integration test in `test_lstm_loading.py` checks exact weights, input
 transfer from CPU data and actual LSTM/linear CUDA execution when a working GPU
 is available; it is skipped on CPU hosts. `test_lstm_inputs.py` checks the path
 from preprocessed windows to model inputs, shapes, values, dtype, invalid data
-and transfer errors. Run the suite on a GPU server to complete hardware verification.
+and transfer errors. `test_lstm_inference.py` covers recorded reference outputs,
+reverse feedback decoding, configurable repeat counts, MSE of the averaged
+reconstruction, inference mode and invalid outputs. The CUDA integration test
+also executes `predict`, checking reconstruction and score tensors on GPU. Run
+the suite on a GPU server to complete hardware verification.
 
 `test_model_loading.py` covers database metadata, private storage and the
 `check_model_weights` management command as part of the complete Django suite.

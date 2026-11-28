@@ -128,19 +128,61 @@ layers; see [PyTorch LSTM](https://docs.pytorch.org/docs/2.15/generated/torch.nn
 Tensor dimensions cannot prove the training dropout or preprocessing recipe.
 Those declarations still need to match external training.
 
-This stage implements model loading and input preparation. Calling the
-model for reconstruction raises `NotImplementedError`: encoder-state
-initialization, decoding and scoring will be implemented separately. The loader
-does not import or execute legacy project code, choose a reconstruction policy,
-run preprocessing, train, calculate anomaly scores or register analysis results.
-An unconfigured preprocessing profile remains unchanged and does not prevent a
-weights-only check; successful loading alone does not establish inference readiness.
+## LSTM-AE reconstruction and scoring
+
+`model.predict(data, reconstruction_repeats=10)` executes one preprocessed input
+batch. The argument is a positive integer (booleans are rejected). Set it to 1
+for one reconstruction, or another count for averaging. It is an execution
+option in code, not a database field or architecture parameter. The returned
+`ReconstructionResult` records the count actually used, together with:
+
+- `reconstruction`: the averaged `[batch, sample, feature]` tensor.
+- `scores`: one MSE value per window, shape `[batch]`.
+
+```python
+result = model.predict(window_values, reconstruction_repeats=5)
+print(result.reconstruction.shape, result.scores.shape)
+print(result.reconstruction_repeats)  # 5
+```
+
+`forward(inputs)` performs one reconstruction using prepared tensors. Encoder
+hidden and cell states are sampled from a standard normal distribution on the
+input device and dtype for each call. Its final states initialize the decoder.
+Starting with the last observed sample, the decoder feeds its own predictions
+back and writes reconstructed samples from end to beginning. States stay local
+to the call and do not persist across independent batches. This reproduces the
+previous runtime's decoding policy without importing legacy project code.
+The original training loop is not present in this repository; this compatibility
+is verified against the earlier inference implementation, not a training recipe.
+
+`predict` prepares input on the model device and calls the shared
+`torch_inference.reconstruct_batch` runner. The runner puts the model in evaluation
+mode and leaves it there. Both input preparation and execution run under
+[PyTorch inference mode](https://docs.pytorch.org/docs/2.15/generated/torch.autograd.grad_mode.inference_mode.html).
+Dropout is disabled, but explicit random initial states remain random. Callers
+control seeds outside the runtime; changing batch layout or CPU/CUDA backend can
+change sampled states and floating-point results.
+
+Outputs are accumulated one at a time, with memory independent of the repeat
+count. The mean is computed before scoring:
+`scores = ((inputs - reconstruction) ** 2).mean(dim=(1, 2))`.
+This is MSE of the mean reconstruction, not the mean of separate MSE scores.
+Incremental accumulation can differ slightly from stacked averaging due to
+floating-point rounding. Unexpected output shapes/devices/dtypes, non-finite
+reconstructions and MSE overflow are rejected. Inputs, weights, reconstruction
+and scores stay on the same device; no per-step CPU copies are made.
+
+Prepare and consume batches one at a time. This batch-level runtime does not
+read raw signal files, choose preprocessing, apply thresholds, classify windows
+or save analysis records. Model loading still does not execute predictions.
+An unconfigured preprocessing profile remains unchanged: weight loading and a
+supplied preprocessed batch do not establish the correct raw-data training recipe.
 
 `check_model_weights` reports missing versions, unavailable files, byte-count
 mismatches and incompatible checkpoints. Its output uses the common runtime
 identity without inspecting LSTM architecture attributes. This standalone
-diagnostic command is temporary and will be removed after the main inference
-workflow provides the required checks. Only `lstm_ae` currently has a production
+diagnostic command is temporary and will be removed after an analysis entry point
+provides the required checks. Only `lstm_ae` currently has a production
 loader; other algorithms fail explicitly until their loaders are registered.
 
 ## Preprocessing metadata

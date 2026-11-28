@@ -1,4 +1,4 @@
-"""Build the LSTM-AE parameter topology and load compatible tensor weights."""
+"""Load and run an LSTM autoencoder with reverse autoregressive decoding."""
 
 from dataclasses import dataclass
 from pickle import UnpicklingError
@@ -9,6 +9,11 @@ from torch import nn
 
 from algorithms._specs import validate_input_spec, validate_json_object
 from algorithms.runtimes.torch_device import as_numeric_tensor, get_torch_device, to_model_tensor
+from algorithms.runtimes.torch_inference import (
+    ReconstructionResult,
+    reconstruct_batch,
+    validate_reconstruction_repeats,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -34,12 +39,13 @@ def _architecture(params: dict) -> LSTMArchitecture:
 
 
 class LSTMAutoencoder(nn.Module):
-    """Parameter graph for two unidirectional LSTMs and a linear decoder head.
+    """Two unidirectional LSTMs and a linear decoder head.
 
     Feature count comes from input_spec, independently of the hidden size.
     Module names match the checkpoint's parameter names; no old project code is
-    imported. This loading stage does not choose an encoder-state initialization
-    or decoding policy. Reconstruction will be implemented separately.
+    imported. Each forward call starts the encoder with fresh standard-normal
+    hidden/cell states. The decoder starts with the final input sample and feeds
+    its own predictions back, reconstructing from the end to the beginning.
     """
 
     algorithm_key = "lstm_ae"
@@ -75,14 +81,55 @@ class LSTMAutoencoder(nn.Module):
         and transfers inputs only; it does not reconstruct or score signals.
         """
         inputs = as_numeric_tensor(data)
+        self._validate_input_shape(inputs)
+        return to_model_tensor(inputs, model=self)
+
+    def _validate_input_shape(self, inputs: torch.Tensor) -> None:
+        """Check the batch-first window shape before allocating device inputs."""
+        if not isinstance(inputs, torch.Tensor):
+            raise ValueError("LSTM forward expects a tensor; use prepare_inputs or predict for raw data.")
         if inputs.ndim != 3 or any(size == 0 for size in inputs.shape):
             raise ValueError("LSTM inputs must have non-empty [batch, sample, feature] dimensions.")
         if inputs.shape[2] != len(self.features):
             raise ValueError("LSTM input feature count must match the model's features.")
-        return to_model_tensor(inputs, model=self)
 
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
-        raise NotImplementedError("Reconstruction execution is not implemented in the model-loading stage.")
+        """Reconstruct one prepared batch, retaining its shape, device and dtype.
+
+        This is one stochastic reconstruction. predict() handles evaluation,
+        autograd disabling, repeated reconstruction and scoring. States are
+        local to this call; independent batches never share recurrent state.
+        """
+        self._validate_input_shape(inputs)
+        parameter = next(self.parameters())
+        if inputs.device != parameter.device or inputs.dtype != parameter.dtype or inputs.layout != torch.strided:
+            raise ValueError("LSTM inputs must match the model's device, dtype and dense layout.")
+
+        state_shape = (self.architecture.num_layers, inputs.shape[0], self.architecture.hidden_size)
+        hidden = torch.randn(state_shape, device=inputs.device, dtype=inputs.dtype)
+        cell = torch.randn(state_shape, device=inputs.device, dtype=inputs.dtype)
+        _, states = self.encoder.lstm(inputs, (hidden, cell))
+
+        # Decode backwards, starting from the last observed sample. Each decoded
+        # sample becomes the next decoder input, without teacher forcing.
+        decoder_input = inputs[:, -1:, :]
+        reconstruction = torch.empty_like(inputs)
+        for index in range(inputs.shape[1] - 1, -1, -1):
+            decoded, states = self.decoder.lstm(decoder_input, states)
+            decoder_input = self.decoder.linear(decoded)
+            reconstruction[:, index, :] = decoder_input[:, 0, :]
+        return reconstruction
+
+    @torch.inference_mode()
+    def predict(self, data, *, reconstruction_repeats: int = 10) -> ReconstructionResult:
+        """Prepare one batch, average reconstructions and return per-window MSE.
+
+        reconstruction_repeats=1 performs a single reconstruction. No threshold
+        or Normal/Anomaly classification is applied to the returned scores.
+        """
+        validate_reconstruction_repeats(reconstruction_repeats)
+        inputs = self.prepare_inputs(data)
+        return reconstruct_batch(self, inputs, reconstruction_repeats=reconstruction_repeats)
 
 
 def _validate_weights(state: dict, architecture: LSTMArchitecture, feature_count: int) -> None:

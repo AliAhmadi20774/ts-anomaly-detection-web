@@ -181,11 +181,6 @@ class LSTMLoadingTests(TestCase):
             self.load()
         self.assertEqual(transfer.call_count, 1)
 
-    def test_reconstruction_policy_is_not_silently_chosen_by_the_loader(self):
-        with self.assertRaisesRegex(NotImplementedError, "Reconstruction"):
-            self.load()(torch.zeros(1, 4, 2))
-
-
 @skipUnless(torch.cuda.is_available(), "A working CUDA GPU is required.")
 class LSTMCudaLoadingTests(TestCase):
     def test_loaded_weights_and_model_layers_work_on_cuda(self):
@@ -222,3 +217,11 @@ class LSTMCudaLoadingTests(TestCase):
         cpu_inputs = original.prepare_inputs(inputs)
         self.assertEqual(cpu_inputs.device.type, "cpu")
         torch.testing.assert_close(cpu_inputs, inputs.cpu(), rtol=0, atol=0)
+        result = model.predict(inputs.cpu(), reconstruction_repeats=2)
+        self.assertEqual(result.reconstruction.device, model.device)
+        self.assertEqual(result.scores.device, model.device)
+        self.assertEqual(result.reconstruction.shape, inputs.shape)
+        self.assertEqual(tuple(result.scores.shape), (1,))
+        self.assertFalse(result.reconstruction.requires_grad)
+        self.assertEqual(result.reconstruction_repeats, 2)
+        torch.testing.assert_close(result.scores, (inputs - result.reconstruction).square().mean(dim=(1, 2)))
