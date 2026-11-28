@@ -89,6 +89,21 @@ class PreprocessingTests(TestCase):
         self.assertEqual([(window.start, window.end) for window in windows], [(100, 102), (101, 103)])
         self.assertEqual([window.values for window in windows], [((-1, -2), (0, 0)), ((0, 0), (2, 1))])
 
+    def test_saved_resampling_uses_model_target_rate_and_preserves_source_bounds(self):
+        model = self.model(self.profile(
+            {"type": "resample", "method": "mean"},
+            {"type": "window", "size": 2, "tail": "reject"},
+        ), input_spec={"features": ["pressure", "temperature"], "sample_rate_hz": 500})
+        model.full_clean()
+        model.save()
+        model.refresh_from_db()
+        windows = list(iter_preprocessed_windows(
+            [[2, 30], [4, 10], [10, 80], [14, 40]], preprocessing=model.preprocessing,
+            input_spec=model.input_spec, stride=1, offset=100, source_sample_rate_hz=1000,
+        ))
+        self.assertEqual(windows[0].values, ((3, 20), (12, 60)))
+        self.assertEqual((windows[0].start, windows[0].end), (100, 104))
+
     def test_unknown_schemas_empty_values_and_unknown_steps_are_rejected(self):
         for value in [
             {}, [], "", 0, False, {"schema_version": 1, "steps": []},

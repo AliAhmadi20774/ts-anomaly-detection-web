@@ -52,8 +52,9 @@ metadata (the weight-registration service already does this). The database also
 rejects non-object JSON values; it allows SQL `NULL` for unconfigured versions.
 
 The metadata validator only checks declarations. The executor below supports
-normalization and windowing; there is no inference endpoint or training operation
-yet. A declaration is not proof that the weights match it. Schema 1 does not express legacy section
+resampling, normalization and windowing; there is no inference endpoint or
+training operation yet. A declaration is not proof that the weights match it.
+Schema 1 does not express legacy section
 selection, zero-padding, imputation or custom feature extraction; these need
 explicit step definitions before a complete recipe using them can be registered.
 Stride and batch size belong to future analysis-run settings, not this field.
@@ -93,10 +94,12 @@ windowing or on each window's values; it does not change sample bounds.
 
 `algorithms.preprocessing.iter_preprocessed_windows` executes the stored steps
 in order. It requires exactly one `window` step and supports any declared
-`normalize` steps before or after it. Valid metadata without a window can still
+`normalize` steps before or after it. `resample` steps execute before windowing,
+in their declared order relative to normalization. Valid metadata without a window can still
 be saved, but this window-producing executor rejects it. An unconfigured `None`
-profile also fails explicitly. A declared `resample` step raises
-`NotImplementedError` before measurements are consumed; it is never skipped.
+profile also fails explicitly. Resampling requires the actual input rate in
+`source_sample_rate_hz`; its target comes from `input_spec.sample_rate_hz`.
+An invalid or unsupported rate fails before measurements are consumed.
 
 ```python
 from algorithms.preprocessing import iter_preprocessed_windows
@@ -128,9 +131,14 @@ The executor itself uses `ValueError` for invalid input.
 
 Samples are validated and copied before returning an iterator; all measurements
 must be finite, including any dropped tail. Actual column counts must match
-`input_spec.features`, but callers supply the correct feature order and sampling
-rate because numeric rows alone cannot identify them. Pass each serial or
-section separately; offsets refer to the supplied sample index domain.
+`input_spec.features`, but callers supply the correct feature order and actual
+sampling rate because numeric rows alone cannot identify them. Without a
+resampling step, a supplied source rate must match the declared model rate.
+Pass each serial or section separately. Window size and stride count processed
+samples; returned bounds and offsets always use the ORIGINAL input sample domain.
+Divide bounds by the source rate to locate the contributing data in seconds.
+After resampling, `window.end - window.start` may differ from the number of rows
+in `window.values`.
 
 Settings are also copied so later caller changes cannot affect execution.
 Pre-window normalization is eager. Windows and post-window normalization are
@@ -140,6 +148,60 @@ bounds; callers must consume the iterator to complete preprocessing. Empty input
 returns no windows after configuration validation. Outputs remain immutable
 `SampleWindow` objects; model-specific batching and tensor conversion are not
 part of this step.
+
+## Resampling primitive
+
+`algorithms.resampling.resample_samples` aggregates `[sample, feature]` rows
+using `mean`, `min` or `max`, independently for each feature. It supports equal
+rates and downsampling, including fractional ratios. Upsampling is rejected
+because these aggregation methods do not define an interpolation policy.
+
+```python
+from algorithms.resampling import resample_samples
+
+series = resample_samples(
+    [[2], [4], [10], [14], [20]], source_sample_rate_hz=1000,
+    target_sample_rate_hz=500, method="mean",
+)
+# series.values:        ((3.0,), (12.0,), (20.0,))
+# series.source_bounds: ((0, 2), (2, 4), (4, 5))
+```
+
+Sample i has time `i / source_rate`; bin k is left-closed and right-open,
+`[k / target_rate, (k + 1) / target_rate)`, anchored at the supplied series start.
+Decimal rates use exact rational boundaries to avoid accumulated rounding drift.
+Only bins through the last sample's timestamp are produced. A final partial bin
+uses its available measurements, with no padding. Window tail policy is applied
+later to the resulting rows and is independent of this partial-bin behavior.
+No additional filtering is applied; use the aggregation method and rates that
+match the model's external training recipe.
+
+The immutable `ResampledSeries` contains values, contributing `source_bounds`,
+the original `source_sample_rate_hz` and output `sample_rate_hz`. Bounds partition
+the supplied input without gaps or duplication. For fractional ratios, these
+bounds describe the actual contributing samples rather than the nominal bin
+edges. Normalization never changes this mapping. The executor also composes
+mappings for repeated resampling steps and preserves bounds through lazy
+post-window normalization.
+
+Example execution of a stored recipe:
+
+```python
+profile = {
+    "schema_version": 1,
+    "steps": [
+        {"type": "resample", "method": "mean"},
+        {"type": "window", "size": 2, "tail": "reject"},
+    ],
+}
+windows = list(iter_preprocessed_windows(
+    [[2], [4], [10], [14]], preprocessing=profile,
+    input_spec={"features": ["signal1"], "sample_rate_hz": 500},
+    source_sample_rate_hz=1000, stride=1, offset=100,
+))
+# One window: values ((3.0,), (12.0,)), original bounds [100, 104).
+# Its contributing source interval is [0.100, 0.104) seconds.
+```
 
 ## Windowing primitive
 

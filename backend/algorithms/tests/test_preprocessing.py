@@ -74,13 +74,80 @@ class PreprocessingExecutionTests(TestCase):
         with self.assertRaisesRegex(ValueError, "exactly one window"):
             self.prepare(self.unused_samples(), self.standardization())
 
-    def test_resampling_is_rejected_explicitly_before_consuming_input(self):
+    def test_resampling_reduces_values_and_maps_bounds_to_source_samples(self):
+        expected = {"mean": (3, 12, 22), "min": (2, 10, 20), "max": (4, 14, 24)}
         for method in ("mean", "min", "max"):
-            with self.subTest(method=method), self.assertRaisesRegex(NotImplementedError, "Resampling is not supported"):
+            with self.subTest(method=method):
+                windows = list(self.prepare(
+                    [[value] for value in (2, 4, 10, 14, 20, 24)],
+                    {"type": "resample", "method": method}, self.window(),
+                    input_spec={"features": ["signal1"], "sample_rate_hz": 500},
+                    source_sample_rate_hz=1000, offset=100,
+                ))
+                first, second, third = expected[method]
+                self.assertEqual([window.values for window in windows], [((first,), (second,)), ((second,), (third,))])
+                self.assertEqual([(window.start, window.end) for window in windows], [(100, 104), (102, 106)])
+                self.assertEqual((windows[0].start / 1000, windows[0].end / 1000), (0.1, 0.104))
+
+    def test_resampling_requires_explicit_supported_rates_before_consuming_input(self):
+        for rate in (None, 0, True, float("nan"), float("inf"), 250):
+            with self.subTest(rate=rate), self.assertRaises(ValueError):
                 self.prepare(
-                    self.unused_samples(), {"type": "resample", "method": method}, self.window(),
-                    input_spec={"features": ["signal1"], "sample_rate_hz": 1000},
+                    self.unused_samples(), {"type": "resample", "method": "mean"}, self.window(),
+                    input_spec={"features": ["signal1"], "sample_rate_hz": 500}, source_sample_rate_hz=rate,
                 )
+
+    def test_normalization_keeps_its_declared_order_relative_to_resampling(self):
+        normalize = {"type": "normalize", "method": "minmax", "scale": [1], "offset": [0], "range": [0, 1], "clip": True}
+        resample = {"type": "resample", "method": "mean"}
+        options = {"input_spec": {"features": ["signal1"], "sample_rate_hz": 500}, "source_sample_rate_hz": 1000}
+        before = list(self.prepare([[-2], [4], [6], [10]], normalize, resample, self.window(), **options))
+        after = list(self.prepare([[-2], [4], [6], [10]], resample, self.window(), normalize, **options))
+        self.assertEqual(before[0].values, ((0.5,), (1,)))
+        self.assertEqual(after[0].values, ((1,), (1,)))
+        self.assertEqual((before[0].start, before[0].end), (0, 4))
+        self.assertEqual((after[0].start, after[0].end), (0, 4))
+
+    def test_fractional_resampling_preserves_partial_final_extent(self):
+        windows = list(self.prepare(
+            [[value] for value in range(5)], {"type": "resample", "method": "mean"},
+            self.window(size=3, tail="reject"), input_spec={"features": ["signal1"], "sample_rate_hz": 600},
+            source_sample_rate_hz=1000, offset=7,
+        ))
+        self.assertEqual(windows[0].values, ((0.5,), (2.5,), (4,)))
+        self.assertEqual((windows[0].start, windows[0].end), (7, 12))
+
+    def test_resampling_and_window_tail_are_separate_policies(self):
+        options = {"input_spec": {"features": ["signal1"], "sample_rate_hz": 500}, "source_sample_rate_hz": 1000, "stride": 2}
+        samples = [[value] for value in range(5)]
+        resample = {"type": "resample", "method": "mean"}
+        dropped = list(self.prepare(samples, resample, self.window(), **options))
+        self.assertEqual(dropped[0].values, ((0.5,), (2.5,)))
+        self.assertEqual((dropped[0].start, dropped[0].end), (0, 4))
+        with self.assertRaisesRegex(ValueError, "incomplete tail"):
+            self.prepare(samples, resample, self.window(tail="reject"), **options)
+        self.assertEqual(list(self.prepare([], resample, self.window(tail="reject"), **options)), [])
+
+    def test_repeated_resampling_to_the_same_target_does_not_remap_twice(self):
+        windows = list(self.prepare(
+            [[value] for value in range(6)], {"type": "resample", "method": "mean"},
+            {"type": "resample", "method": "max"}, self.window(),
+            input_spec={"features": ["signal1"], "sample_rate_hz": 500}, source_sample_rate_hz=1000,
+        ))
+        self.assertEqual([window.values for window in windows], [((0.5,), (2.5,)), ((2.5,), (4.5,))])
+        self.assertEqual([(window.start, window.end) for window in windows], [(0, 4), (2, 6)])
+
+    def test_rate_mismatch_without_declared_resampling_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "declare a resample"):
+            self.prepare(
+                self.unused_samples(), self.window(), source_sample_rate_hz=1000,
+                input_spec={"features": ["signal1"], "sample_rate_hz": 500},
+            )
+        windows = list(self.prepare(
+            [[1], [2]], self.window(), source_sample_rate_hz=500,
+            input_spec={"features": ["signal1"], "sample_rate_hz": 500},
+        ))
+        self.assertEqual(windows[0].values, ((1,), (2,)))
 
     def test_unconfigured_and_invalid_declarations_fail_before_consuming_input(self):
         for profile in (

@@ -17,6 +17,7 @@ backend/
     test_normalization.py
     test_preprocessing.py
     test_preprocessing_metadata.py
+    test_resampling.py
     test_storage_only_migration.py
     test_windowing.py
   dat_imports/tests/
@@ -30,7 +31,7 @@ Django settings or database. From `backend/`, with the project's Python
 environment active:
 
 ```powershell
-python -m unittest algorithms.tests.test_normalization algorithms.tests.test_windowing algorithms.tests.test_preprocessing -v
+python -m unittest algorithms.tests.test_normalization algorithms.tests.test_windowing algorithms.tests.test_preprocessing algorithms.tests.test_resampling -v
 ```
 
 For the complete suite, configure `PGHOST`, `PGPORT`, `PGDATABASE`, `PGUSER` and
