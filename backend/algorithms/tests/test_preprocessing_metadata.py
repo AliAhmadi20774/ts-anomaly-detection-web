@@ -6,6 +6,7 @@ from django.test import TestCase
 
 from algorithms.models import Algorithm, ModelVersion
 from algorithms.normalization import normalize_samples
+from algorithms.preprocessing import iter_preprocessed_windows
 
 
 class PreprocessingTests(TestCase):
@@ -71,6 +72,22 @@ class PreprocessingTests(TestCase):
         # Columns are pressure, temperature, as declared in input_spec.features.
         result = normalize_samples([[8, 60], [14, 120]], step=model.preprocessing["steps"][0])
         self.assertEqual(result, ((-1, -2), (2, 1)))
+
+    def test_saved_pipeline_can_be_executed_without_loading_model_weights(self):
+        model = self.model(self.profile(
+            {"type": "normalize", "method": "standardize", "mean": [10, 100], "scale": [2, 20]},
+            {"type": "window", "size": 2, "tail": "reject"},
+            {"type": "normalize", "method": "none"},
+        ))
+        model.full_clean()
+        model.save()
+        model.refresh_from_db()
+        windows = list(iter_preprocessed_windows(
+            [[8, 60], [10, 100], [14, 120]], preprocessing=model.preprocessing,
+            input_spec=model.input_spec, stride=1, offset=100,
+        ))
+        self.assertEqual([(window.start, window.end) for window in windows], [(100, 102), (101, 103)])
+        self.assertEqual([window.values for window in windows], [((-1, -2), (0, 0)), ((0, 0), (2, 1))])
 
     def test_unknown_schemas_empty_values_and_unknown_steps_are_rejected(self):
         for value in [

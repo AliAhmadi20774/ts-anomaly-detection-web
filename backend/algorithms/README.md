@@ -51,9 +51,9 @@ numbers and invalid parameters are rejected. Call `full_clean()` before saving
 metadata (the weight-registration service already does this). The database also
 rejects non-object JSON values; it allows SQL `NULL` for unconfigured versions.
 
-The metadata validator does not execute a pipeline: there is no configured
-pipeline executor, inference endpoint or training operation yet. A declaration is not
-proof that the weights match it. Schema 1 does not express legacy section
+The metadata validator only checks declarations. The executor below supports
+normalization and windowing; there is no inference endpoint or training operation
+yet. A declaration is not proof that the weights match it. Schema 1 does not express legacy section
 selection, zero-padding, imputation or custom feature extraction; these need
 explicit step definitions before a complete recipe using them can be registered.
 Stride and batch size belong to future analysis-run settings, not this field.
@@ -87,8 +87,59 @@ Empty input returns an empty tuple after validating the normalization step.
 Metadata validation and execution share `validate_normalization`, ensuring that
 both accept the same fitted parameter format. Sample validation is shared with
 windowing in the private `_samples` module. Normalization can be called before
-windowing or on each window's values; it does not change sample bounds. There is
-still no complete configured pipeline executor or inference endpoint.
+windowing or on each window's values; it does not change sample bounds.
+
+## Preprocessing executor
+
+`algorithms.preprocessing.iter_preprocessed_windows` executes the stored steps
+in order. It requires exactly one `window` step and supports any declared
+`normalize` steps before or after it. Valid metadata without a window can still
+be saved, but this window-producing executor rejects it. An unconfigured `None`
+profile also fails explicitly. A declared `resample` step raises
+`NotImplementedError` before measurements are consumed; it is never skipped.
+
+```python
+from algorithms.preprocessing import iter_preprocessed_windows
+
+profile = {
+    "schema_version": 1,
+    "steps": [
+        {"type": "normalize", "method": "standardize", "mean": [10], "scale": [2]},
+        {"type": "window", "size": 2, "tail": "reject"},
+    ],
+}
+windows = list(iter_preprocessed_windows(
+    [[10], [14], [18]], preprocessing=profile,
+    input_spec={"features": ["signal1"]}, stride=1, offset=100,
+))
+# [100, 102): ((0.0,), (2.0,))
+# [101, 103): ((2.0,), (4.0,))
+```
+
+For a stored version, pass `preprocessing=model_version.preprocessing` and
+`input_spec=model_version.input_spec`. Stride remains a runtime analysis setting.
+No weights are loaded and no database query is made by this function.
+
+The executor validates the entire declaration, input specification and fitted
+vector lengths using the same rules as the Django metadata validators. These
+rules live in the framework-independent `_specs` module; the Django classes keep
+their existing migration-compatible paths and report Django `ValidationError`.
+The executor itself uses `ValueError` for invalid input.
+
+Samples are validated and copied before returning an iterator; all measurements
+must be finite, including any dropped tail. Actual column counts must match
+`input_spec.features`, but callers supply the correct feature order and sampling
+rate because numeric rows alone cannot identify them. Pass each serial or
+section separately; offsets refer to the supplied sample index domain.
+
+Settings are also copied so later caller changes cannot affect execution.
+Pre-window normalization is eager. Windows and post-window normalization are
+lazy, avoiding a complete materialized array of overlapping windows. Arithmetic
+errors after windowing surface during iteration and include the affected window
+bounds; callers must consume the iterator to complete preprocessing. Empty input
+returns no windows after configuration validation. Outputs remain immutable
+`SampleWindow` objects; model-specific batching and tensor conversion are not
+part of this step.
 
 ## Windowing primitive
 

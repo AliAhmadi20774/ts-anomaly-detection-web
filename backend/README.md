@@ -15,6 +15,7 @@ backend/
     test_model_versions.py
     test_models_root_migration.py
     test_normalization.py
+    test_preprocessing.py
     test_preprocessing_metadata.py
     test_storage_only_migration.py
     test_windowing.py
@@ -24,12 +25,12 @@ backend/
   sample_data/tests/
 ```
 
-The algorithm primitive tests use standard-library `unittest` and need no
+The algorithm primitive and preprocessing executor tests use standard-library `unittest` and need no
 Django settings or database. From `backend/`, with the project's Python
 environment active:
 
 ```powershell
-python -m unittest algorithms.tests.test_normalization algorithms.tests.test_windowing -v
+python -m unittest algorithms.tests.test_normalization algorithms.tests.test_windowing algorithms.tests.test_preprocessing -v
 ```
 
 For the complete suite, configure `PGHOST`, `PGPORT`, `PGDATABASE`, `PGUSER` and
